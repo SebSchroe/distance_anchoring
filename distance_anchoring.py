@@ -59,13 +59,13 @@ def initialize_setup(normalization_algorithm="rms", normalization_sound_type="sy
 # def training():
 
 # main code for running the experiments test phase
-def test_1(sub_id, test_condition, n_reps, environment='laptop'):
+def test(sub_id, block_id, task_id, n_reps, play_via='laptop'):
 
-    # select condition of the block
-    if test_condition == 1: # n_reps = 5 for 55 trials
+    # select condition for this block
+    if task_id == 1: # n_reps = 5 for 55 trials
         nearest_speaker = 0
         farthest_speaker = 10
-    elif test_condition == 2: # n_reps = 9 for 54 trials
+    elif task_id == 2: # n_reps = 9 for 54 trials
         nearest_speaker = 1
         farthest_speaker = 6
     else: # n_reps = 5 for 55 trials
@@ -81,14 +81,14 @@ def test_1(sub_id, test_condition, n_reps, environment='laptop'):
         random_index = random.randint(0, len(precomputed_USOs) - 1)
         USO = slab.Sound(precomputed_USOs[random_index])
         stim_id = USO_file_names[random_index]
-        # prepare and playing USO for cathedral or on laptop
-        if environment == 'laptop':
+        # prepare and playing USO on laptop or in cathedral
+        if play_via == 'laptop':
             USO.play()
         else:
             USO = apply_mgb_equalization(signal=USO, speaker=freefield.pick_speakers(speaker)[0])
             freefield.set_signal_and_speaker(signal=USO, speaker=speaker, equalize=False)
             freefield.play(kind=1, proc='RX81')
-            freefield.flush_buffers(processor='RX81')
+
 
         # wait for response and read it
         time_before = time.time()
@@ -99,19 +99,21 @@ def test_1(sub_id, test_condition, n_reps, environment='laptop'):
         # finish this trial
         event_id = seq.this_n + 1 # Q: event_id = seq.this_n? start counting at 0 or 1?
         print('Trial:', event_id)
+        if play_via == 'cathedral':
+            freefield.flush_buffers(processor='RX81')
         time.sleep(USO.duration)
 
         # save data event by event
-        save_results(event_id=event_id, sub_id=sub_id, stage='test',
-                     task_id=test_condition, stim_id=stim_id, speaker_id=speaker, response=response,
+        save_results(event_id=event_id, sub_id=sub_id, block_id=block_id,
+                     task_id=task_id, stim_id=stim_id, speaker_id=speaker, response=response,
                      response_time=response_time, normalization_method='normalization_method')
     print("Done with training")
 
 
-def save_results(event_id, sub_id, stage, task_id, stim_id, speaker_id, response, response_time, normalization_method): # TODO: think about datastructure
+def save_results(event_id, sub_id, block_id, task_id, stim_id, speaker_id, response, response_time, normalization_method): # TODO: think about datastructure
 
     # create file name
-    file_name = DIR / 'results' / f'results_{sub_id}_{stage}_{task_id}.csv'
+    file_name = DIR / 'results' / f'results_sub-{sub_id}_block-{block_id}_cond-{task_id}.csv'
     if file_name.exists():
         df_curr_results = pd.read_csv(file_name)
     else:
@@ -120,7 +122,7 @@ def save_results(event_id, sub_id, stage, task_id, stim_id, speaker_id, response
     # convert values in desired data types
     event_id = int(event_id)
     sub_id = int(sub_id)
-    stage = str(stage)
+    block_id = str(block_id)
     task_id = int(task_id) # condition 1, 2 or 3
     stim_id = str(stim_id)
     speaker_id = str(speaker_id)
@@ -131,7 +133,7 @@ def save_results(event_id, sub_id, stage, task_id, stim_id, speaker_id, response
     # building current data structure
     new_row = {'event_id' : event_id,
         'sub_id' : sub_id,
-        'stage' : stage,
+        'block_id' : block_id,
         'task_id' : task_id,
         'stim_id' : stim_id,
         'speaker_id' : speaker_id,

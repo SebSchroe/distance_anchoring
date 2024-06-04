@@ -1,0 +1,9 @@
+event_id,sub_id,block,task_id,stim_id,speaker_id,response,response_time,normalization_method
+1,1,1,2,uso_300ms_27.wav,6,1.0,2.0866007804870605,normalization_method
+2,1,1,2,uso_300ms_63.wav,2,2.0,0.7197785377502441,normalization_method
+1,1,1,2,uso_300ms_71.wav,4,1.0,1.2663187980651855,normalization_method
+2,1,1,2,uso_300ms_79.wav,3,2.0,1.0298123359680176,normalization_method
+3,1,1,2,uso_300ms_67.wav,6,3.0,1.0272939205169678,normalization_method
+4,1,1,2,uso_300ms_51.wav,5,4.0,1.1099896430969238,normalization_method
+5,1,1,2,uso_300ms_67.wav,1,5.0,0.8804357051849365,normalization_method
+6,1,1,2,uso_300ms_91.wav,2,6.0,0.8765292167663574,normalization_method
