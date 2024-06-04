@@ -85,7 +85,7 @@ def test_1(sub_id, test_condition, n_reps, environment='laptop'):
         if environment == 'laptop':
             USO.play()
         else:
-            USO = apply_mgb_equalization(signal=USO, speaker=speaker)
+            USO = apply_mgb_equalization(signal=USO, speaker=freefield.pick_speakers(speaker)[0])
             freefield.set_signal_and_speaker(signal=USO, speaker=speaker, equalize=False)
             freefield.play(kind=1, proc='RX81')
             freefield.flush_buffers(processor='RX81')

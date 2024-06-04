@@ -24,3 +24,9 @@ event_id,sub_id,stage,task_id,stim_id,speaker_id,response,response_time,normaliz
 9,1,test,1,uso_300ms_27.wav,0,1.0,0.6782448291778564,normalization_method
 10,1,test,1,uso_300ms_71.wav,4,1.0,0.6864235401153564,normalization_method
 11,1,test,1,uso_300ms_83.wav,9,1.0,0.7192959785461426,normalization_method
+1,1,test,1,uso_300ms_55.wav,3,6.0,10.606287240982056,normalization_method
+1,1,test,1,uso_300ms_91.wav,2,6.0,11.249224662780762,normalization_method
+2,1,test,1,uso_300ms_3.wav,5,5.0,13.11450219154358,normalization_method
+3,1,test,1,uso_300ms_119.wav,6,1.0,1.4217772483825684,normalization_method
+4,1,test,1,uso_300ms_115.wav,1,6.0,10.296164751052856,normalization_method
+5,1,test,1,uso_300ms_99.wav,3,4.0,1.6561353206634521,normalization_method

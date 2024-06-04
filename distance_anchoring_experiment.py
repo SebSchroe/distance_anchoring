@@ -3,7 +3,8 @@
 import distance_anchoring
 sub_id = 0
 
-test_1(sub_id=1, test_condition=1, n_reps=5)
+distance_anchoring.initialize_setup()
+distance_anchoring.test_1(sub_id=1, test_condition=1, n_reps=1, environment='cathedral')
 
 
 
