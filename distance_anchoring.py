@@ -5,46 +5,26 @@ import pathlib
 import os
 import time
 import random
+import serial
 import numpy as np
 import pandas as pd
 
 # global variables
-normalization_method = None
 DIR = pathlib.Path(os.curdir)
+normalization_method = None
+port = "COM5"
+slider = serial.Serial(port, baudrate=9600, timeout=0, rtscts=False)
 
-# def get_precomputed_USOs():
+# TODO: make this a function?
 USO_file_folder = DIR / 'data' / 'cutted_USOs' / 'uso_300ms'
 USO_file_names = os.listdir(DIR / 'data' / 'cutted_USOs' / 'uso_300ms')
 precomputed_USOs = slab.Precomputed([slab.Sound(os.path.join(USO_file_folder, f)) for f in USO_file_names]) # precompute sound files out of USO name list
 
-# new equalization method (universally applicable)
-def quadratic_func(x, a, b, c):
-    return a * x ** 2 + b * x + c
-
-def logarithmic_func(x, a, b, c):
-    return a * np.log(b * x) + c
-
-def get_log_parameters(distance):
-    parameters_file = DIR / "data" / "mgb_equalization_parameters" / "logarithmic_function_parameters.csv"
-    parameters_df = pd.read_csv(parameters_file)
-    params = parameters_df[parameters_df['speaker_distance'] == distance]
-    a, b, c = params.iloc[0][['a', 'b', 'c']]
-    return a, b, c
-
-def apply_mgb_equalization(signal, speaker, mgb_loudness=30, fluc=0):
-    a, b, c = get_log_parameters(speaker.distance)
-    signal.level = logarithmic_func(mgb_loudness + fluc, a, b, c)
-    return signal
-
-def get_speaker_normalization_level(speaker):
-    a, b, c = get_log_parameters(speaker.distance)
-    return logarithmic_func(x=30, a=a, b=b, c=c)
-
 # initialize setup to connect to the processors
-def initialize_setup(normalization_algorithm="rms", normalization_sound_type="syllable"): # change normalization setup for my purpose
+def initialize_setup(normalization_algorithm="rms", normalization_sound_type="syllable"): # TODO: attributes can be removed
     global normalization_method
-    procs = [["RX81", "RX8", DIR / "data" / "rcx" / "cathedral_play_buf.rcx"], # should stay the same
-             ["RP2", "RP2", DIR / "data" / "rcx" / "button_numpad.rcx"]] # has to be adjusted to the slider/rotating wheel/joystick/etc.
+    procs = [["RX81", "RX8", DIR / "data" / "rcx" / "cathedral_play_buf.rcx"],
+             ["RP2", "RP2", DIR / "data" / "rcx" / "button_numpad.rcx"]] # is redundant
     freefield.initialize("cathedral", device=procs, zbus=False, connection="USB")
     freefield.SETUP = "cathedral"
     freefield.SPEAKERS = freefield.read_speaker_table()
@@ -56,12 +36,34 @@ def initialize_setup(normalization_algorithm="rms", normalization_sound_type="sy
     normalization_method = "mgb_normalization"
     freefield.set_logger("DEBUG")
 
-# def training():
+def training():
+
+    # set condition for this block
+    if task_id == 1: # n_reps = 5 for 55 trials
+        nearest_speaker = 0
+        farthest_speaker = 10
+    elif task_id == 2: # n_reps = 9 for 54 trials
+        nearest_speaker = 1
+        farthest_speaker = 6
+
+    training_duration = 90
+    isi = 2
+
+    # initialize sequence with corresponding conditions
+    speakers = list(range(nearest_speaker, farthest_speaker + 1)) # TODO: redundant I think
+    seq = slab.Trialsequence(conditions=int(training_duration / isi))
+    for trial in seq:
+        # get random USO sound
+        # read slider value and convert it to speaker value (cut edges depending on task_id)
+        # play USO from speaker corresponding to to slider value
+        # save results
+        # sleep for isi
+
 
 # main code for running the experiments test phase
-def test(sub_id, block_id, task_id, n_reps, play_via='laptop'):
+def test(sub_id, block_id, task_id, n_reps, play_via='cathedral'):
 
-    # select condition for this block
+    # set condition for this block
     if task_id == 1: # n_reps = 5 for 55 trials
         nearest_speaker = 0
         farthest_speaker = 10
@@ -77,26 +79,28 @@ def test(sub_id, block_id, task_id, n_reps, play_via='laptop'):
     speakers = list(range(nearest_speaker, farthest_speaker + 1))
     seq = slab.Trialsequence(conditions=speakers, n_reps=n_reps)
     for speaker in seq:
-        # get USO sound
+        # get random USO sound
         random_index = random.randint(0, len(precomputed_USOs) - 1)
         USO = slab.Sound(precomputed_USOs[random_index])
         stim_id = USO_file_names[random_index]
         # prepare and playing USO on laptop or in cathedral
-        if play_via == 'laptop':
-            USO.play()
-        else:
+        if play_via == 'cathedral':
             USO = apply_mgb_equalization(signal=USO, speaker=freefield.pick_speakers(speaker)[0])
             freefield.set_signal_and_speaker(signal=USO, speaker=speaker, equalize=False)
             freefield.play(kind=1, proc='RX81')
-
+        else:
+            USO.play()
 
         # wait for response and read it
         time_before = time.time()
-        response = input("Enter estimated distance (in m) here: ") # TODO: get correct response method here
+        if play_via == 'cathedral':
+            response = get_slider_value()
+        else:
+            response = input("Enter estimated distance (in m) here: ")
         time_after = time.time()
-        response_time = time_after - time_before
 
         # finish this trial
+        response_time = time_after - time_before
         event_id = seq.this_n + 1 # Q: event_id = seq.this_n? start counting at 0 or 1?
         print('Trial:', event_id)
         if play_via == 'cathedral':
@@ -126,7 +130,7 @@ def save_results(event_id, sub_id, block_id, task_id, stim_id, speaker_id, respo
     task_id = int(task_id) # condition 1, 2 or 3
     stim_id = str(stim_id)
     speaker_id = str(speaker_id)
-    response = float(response)
+    response = int(response)
     response_time = float(response_time)
     normalization_method = str(normalization_method)
 
@@ -145,4 +149,40 @@ def save_results(event_id, sub_id, block_id, task_id, stim_id, speaker_id, respo
     df_curr_results = df_curr_results._append(new_row, ignore_index=True)
     df_curr_results.to_csv(file_name, mode='w', header=True, index=False)
 
-# def controller_input():
+# read and return slider value
+def get_slider_value(serial_port=slider, in_metres=True):
+    serial_port.flushInput()
+    buffer_string = ''
+    while True:
+        buffer_string = buffer_string + serial_port.read(serial_port.inWaiting()).decode("ascii")
+        if '\n' in buffer_string:
+            lines = buffer_string.split('\n')  # Guaranteed to have at least 2 entries
+            last_received = lines[-2].rstrip()
+            if last_received:
+                last_received = int(last_received)
+                if in_metres:
+                    last_received = np.interp(last_received, xp=[0, 1023], fp=[0, 15]) - 1.5
+                return last_received
+
+# new equalization method (universally applicable)
+def quadratic_func(x, a, b, c):
+    return a * x ** 2 + b * x + c
+
+def logarithmic_func(x, a, b, c):
+    return a * np.log(b * x) + c
+
+def get_log_parameters(distance):
+    parameters_file = DIR / "data" / "mgb_equalization_parameters" / "logarithmic_function_parameters.csv"
+    parameters_df = pd.read_csv(parameters_file)
+    params = parameters_df[parameters_df['speaker_distance'] == distance]
+    a, b, c = params.iloc[0][['a', 'b', 'c']]
+    return a, b, c
+
+def apply_mgb_equalization(signal, speaker, mgb_loudness=30, fluc=0):
+    a, b, c = get_log_parameters(speaker.distance)
+    signal.level = logarithmic_func(mgb_loudness + fluc, a, b, c)
+    return signal
+
+def get_speaker_normalization_level(speaker):
+    a, b, c = get_log_parameters(speaker.distance)
+    return logarithmic_func(x=30, a=a, b=b, c=c)
