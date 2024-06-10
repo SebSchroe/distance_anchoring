@@ -14,11 +14,23 @@ DIR = pathlib.Path(os.curdir)
 normalization_method = None
 port = "COM5"
 slider = serial.Serial(port, baudrate=9600, timeout=0, rtscts=False)
+speaker_dict = {0: 2.10,
+                1: 2.96,
+                2: 3.84,
+                3: 4.74,
+                4: 5.67,
+                5: 6.62,
+                6: 7.60,
+                7: 8.80,
+                8: 9.64,
+                9: 10.70,
+                10: 11.78} # TODO: adjust values to current setup
 
-# TODO: make this a function?
-USO_file_folder = DIR / 'data' / 'cutted_USOs' / 'uso_300ms'
-USO_file_names = os.listdir(DIR / 'data' / 'cutted_USOs' / 'uso_300ms')
-precomputed_USOs = slab.Precomputed([slab.Sound(os.path.join(USO_file_folder, f)) for f in USO_file_names]) # precompute sound files out of USO name list
+def get_precomputed_USOs (ms):
+    USO_file_folder = DIR / 'data' / 'cutted_USOs' / f'uso_{ms}ms'
+    USO_file_names = os.listdir(DIR / 'data' / 'cutted_USOs' / f'uso_{ms}ms')
+    precomputed_USOs = slab.Precomputed([slab.Sound(os.path.join(USO_file_folder, f)) for f in USO_file_names]) # precompute sound files out of USO name list
+    return precomputed_USOs
 
 # initialize setup to connect to the processors
 def initialize_setup(normalization_algorithm="rms", normalization_sound_type="syllable"): # TODO: attributes can be removed
@@ -36,29 +48,46 @@ def initialize_setup(normalization_algorithm="rms", normalization_sound_type="sy
     normalization_method = "mgb_normalization"
     freefield.set_logger("DEBUG")
 
-def training():
+# main code for running the experiments training phase
+def training(sub_id, block_id, task_id, training_duration=90, isi=2):
 
     # set condition for this block
-    if task_id == 1: # n_reps = 5 for 55 trials
-        nearest_speaker = 0
-        farthest_speaker = 10
-    elif task_id == 2: # n_reps = 9 for 54 trials
-        nearest_speaker = 1
-        farthest_speaker = 6
-
-    training_duration = 90
-    isi = 2
+    if task_id == 1:
+        speaker_dic = speaker_dict # use all speakers
+    elif task_id == 2:
+        speaker_dic = {k: v for k, v in speaker_dict.items() if 1 <= k <= 6} # only use speakers with index 1 to 6
+    else:
+        return print('You can only set task_id to 1 or 2')
 
     # initialize sequence with corresponding conditions
-    speakers = list(range(nearest_speaker, farthest_speaker + 1)) # TODO: redundant I think
+    precomputed_USOs = get_precomputed_USOs(ms=300)
     seq = slab.Trialsequence(conditions=int(training_duration / isi))
     for trial in seq:
         # get random USO sound
-        # read slider value and convert it to speaker value (cut edges depending on task_id)
-        # play USO from speaker corresponding to to slider value
-        # save results
-        # sleep for isi
+        random_index = random.randint(0, len(precomputed_USOs) - 1)
+        USO = slab.Sound(precomputed_USOs[random_index])
+        stim_id = USO_file_names[random_index]
 
+        # read slider value and convert it to speaker value
+        slider_value = get_slider_value() # button has to be pressed all the time
+        closest_speaker = min(speaker_dic, key=lambda k: abs(speaker_dic[k] - slider_value)) # calculates speaker which is closest to distance of the slider value
+
+        # play USO from speaker corresponding to to slider value
+        USO = apply_mgb_equalization(signal=USO, speaker=freefield.pick_speakers(closest_speaker)[0])
+        freefield.set_signal_and_speaker(signal=USO, speaker=closest_speaker, equalize=False)
+        freefield.play(kind=1, proc='RX81')
+
+        # finish this trial
+        event_id = seq.this_n + 1 # TODO: event_id = seq.this_n? start counting at 0 or 1?
+        print('Trial:', event_id)
+        freefield.flush_buffers(processor='RX81')
+        time.sleep(isi)
+        # save results
+        save_results(event_id=event_id, sub_id=sub_id, block_id=block_id, task_id=task_id,
+                     stim_id=stim_id, speaker_id=closest_speaker,
+                     response=slider_value, training_duration=training_duration,
+                     isi=isi, normalization_method='normalization_method')
+    print("Done with training")
 
 # main code for running the experiments test phase
 def test(sub_id, block_id, task_id, n_reps, play_via='cathedral'):
@@ -70,13 +99,16 @@ def test(sub_id, block_id, task_id, n_reps, play_via='cathedral'):
     elif task_id == 2: # n_reps = 9 for 54 trials
         nearest_speaker = 1
         farthest_speaker = 6
-    else: # n_reps = 5 for 55 trials
+    elif: task_id == 3:# n_reps = 5 for 55 trials
         nearest_speaker = 0
         farthest_speaker = 10
         frequency = 500 # TODO: think about third condition (maybe filter would be best)
+    else:
+        return print('You can only set task_id to 1, 2 or 3')
 
     # initialize sequence with corresponding conditions
     speakers = list(range(nearest_speaker, farthest_speaker + 1))
+    precomputed_USOs = get_precomputed_USOs(ms=300)
     seq = slab.Trialsequence(conditions=speakers, n_reps=n_reps)
     for speaker in seq:
         # get random USO sound
@@ -108,16 +140,16 @@ def test(sub_id, block_id, task_id, n_reps, play_via='cathedral'):
         time.sleep(USO.duration)
 
         # save data event by event
-        save_results(event_id=event_id, sub_id=sub_id, block_id=block_id,
-                     task_id=task_id, stim_id=stim_id, speaker_id=speaker, response=response,
+        save_results(event_id=event_id, sub_id=sub_id, block_id=block_id, task_id=task_id,
+                     stim_id=stim_id, speaker_id=speaker, response=response,
                      response_time=response_time, normalization_method='normalization_method')
-    print("Done with training")
+    print("Done with test")
 
 
-def save_results(event_id, sub_id, block_id, task_id, stim_id, speaker_id, response, response_time, normalization_method): # TODO: think about datastructure
+def save_results(event_id, sub_id, block_id, task_id, stim_id, speaker_id, response, response_time, training_duration, isi, normalization_method): # TODO: think about datastructure
 
     # create file name
-    file_name = DIR / 'results' / f'results_sub-{sub_id}_block-{block_id}_cond-{task_id}.csv'
+    file_name = DIR / 'results' / f'results_sub-{sub_id}_block-{block_id}_task-{task_id}.csv'
     if file_name.exists():
         df_curr_results = pd.read_csv(file_name)
     else:
@@ -132,6 +164,8 @@ def save_results(event_id, sub_id, block_id, task_id, stim_id, speaker_id, respo
     speaker_id = str(speaker_id)
     response = int(response)
     response_time = float(response_time)
+    training_duration = int(training_duration)
+    isi = int(isi)
     normalization_method = str(normalization_method)
 
     # building current data structure
@@ -143,6 +177,8 @@ def save_results(event_id, sub_id, block_id, task_id, stim_id, speaker_id, respo
         'speaker_id' : speaker_id,
         'response' : response,
         'response_time' : response_time,
+        'training_duration' : training_duration,
+        'isi' : isi,
         'normalization_method' : normalization_method}
 
     # add row to df
