@@ -26,11 +26,15 @@ speaker_dict = {0: 2.10,
                 9: 10.70,
                 10: 11.78} # TODO: adjust values to current setup
 
-def get_precomputed_USOs (ms):
-    USO_file_folder = DIR / 'data' / 'cutted_USOs' / f'uso_{ms}ms'
-    USO_file_names = os.listdir(DIR / 'data' / 'cutted_USOs' / f'uso_{ms}ms')
-    precomputed_USOs = slab.Precomputed([slab.Sound(os.path.join(USO_file_folder, f)) for f in USO_file_names]) # precompute sound files out of USO name list
-    return precomputed_USOs
+#def get_precomputed_USOs (ms):
+#    USO_file_folder = DIR / 'data' / 'cutted_USOs' / f'uso_{ms}ms'
+ #   USO_file_names = os.listdir(DIR / 'data' / 'cutted_USOs' / f'uso_{ms}ms')
+  #  precomputed_USOs = slab.Precomputed([slab.Sound(os.path.join(USO_file_folder, f)) for f in USO_file_names]) # precompute sound files out of USO name list
+   # return precomputed_USOs, USO_file_names
+
+USO_file_folder = DIR / 'data' / 'cutted_USOs' / f'uso_300ms'
+USO_file_names = os.listdir(DIR / 'data' / 'cutted_USOs' / f'uso_300ms')
+precomputed_USOs = slab.Precomputed([slab.Sound(os.path.join(USO_file_folder, f)) for f in USO_file_names])
 
 # initialize setup to connect to the processors
 def initialize_setup(normalization_algorithm="rms", normalization_sound_type="syllable"): # TODO: attributes can be removed
@@ -60,7 +64,7 @@ def training(sub_id, block_id, task_id, training_duration=90, isi=2):
         return print('You can only set task_id to 1 or 2')
 
     # initialize sequence with corresponding conditions
-    precomputed_USOs = get_precomputed_USOs(ms=300)
+    # precomputed_USOs = get_precomputed_USOs(ms=300)
     seq = slab.Trialsequence(conditions=int(training_duration / isi))
     for trial in seq:
         # get random USO sound
@@ -70,8 +74,8 @@ def training(sub_id, block_id, task_id, training_duration=90, isi=2):
 
         # read slider value and convert it to speaker value
         slider_value = get_slider_value() # button has to be pressed all the time
+        # slider_value = seq.this_n
         closest_speaker = min(speaker_dic, key=lambda k: abs(speaker_dic[k] - slider_value)) # calculates speaker which is closest to distance of the slider value
-
         # play USO from speaker corresponding to to slider value
         USO = apply_mgb_equalization(signal=USO, speaker=freefield.pick_speakers(closest_speaker)[0])
         freefield.set_signal_and_speaker(signal=USO, speaker=closest_speaker, equalize=False)
@@ -80,11 +84,13 @@ def training(sub_id, block_id, task_id, training_duration=90, isi=2):
         # finish this trial
         event_id = seq.this_n + 1 # TODO: event_id = seq.this_n? start counting at 0 or 1?
         print('Trial:', event_id)
+        print('Slider value', slider_value)
+        print('Closest speaker', closest_speaker)
         freefield.flush_buffers(processor='RX81')
-        time.sleep(isi)
+        time.sleep(0) # used to be isi
         # save results
         save_results(event_id=event_id, sub_id=sub_id, block_id=block_id, task_id=task_id,
-                     stim_id=stim_id, speaker_id=closest_speaker,
+                     stim_id=stim_id, speaker_id=closest_speaker, response_time=1,
                      response=slider_value, training_duration=training_duration,
                      isi=isi, normalization_method='normalization_method')
     print("Done with training")
@@ -99,7 +105,7 @@ def test(sub_id, block_id, task_id, n_reps, play_via='cathedral'):
     elif task_id == 2: # n_reps = 9 for 54 trials
         nearest_speaker = 1
         farthest_speaker = 6
-    elif: task_id == 3:# n_reps = 5 for 55 trials
+    elif task_id == 3:# n_reps = 5 for 55 trials
         nearest_speaker = 0
         farthest_speaker = 10
         frequency = 500 # TODO: think about third condition (maybe filter would be best)
@@ -108,7 +114,7 @@ def test(sub_id, block_id, task_id, n_reps, play_via='cathedral'):
 
     # initialize sequence with corresponding conditions
     speakers = list(range(nearest_speaker, farthest_speaker + 1))
-    precomputed_USOs = get_precomputed_USOs(ms=300)
+    #precomputed_USOs = get_precomputed_USOs(ms=300)
     seq = slab.Trialsequence(conditions=speakers, n_reps=n_reps)
     for speaker in seq:
         # get random USO sound
@@ -135,6 +141,8 @@ def test(sub_id, block_id, task_id, n_reps, play_via='cathedral'):
         response_time = time_after - time_before
         event_id = seq.this_n + 1 # Q: event_id = seq.this_n? start counting at 0 or 1?
         print('Trial:', event_id)
+        print('speaker_id', speaker)
+        print('response', response)
         if play_via == 'cathedral':
             freefield.flush_buffers(processor='RX81')
         time.sleep(USO.duration)
@@ -142,7 +150,7 @@ def test(sub_id, block_id, task_id, n_reps, play_via='cathedral'):
         # save data event by event
         save_results(event_id=event_id, sub_id=sub_id, block_id=block_id, task_id=task_id,
                      stim_id=stim_id, speaker_id=speaker, response=response,
-                     response_time=response_time, normalization_method='normalization_method')
+                     response_time=response_time, training_duration=5, isi=5, normalization_method='normalization_method')
     print("Done with test")
 
 

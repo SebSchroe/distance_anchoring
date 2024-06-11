@@ -1,0 +1,13 @@
+event_id,sub_id,block_id,task_id,stim_id,speaker_id,response,response_time,training_duration,isi,normalization_method
+1,0,1,1,uso_300ms_55.wav,3,4,14.639607429504396,5,5,normalization_method
+1,0,1,1,uso_300ms_19.wav,4,4,13.936530351638794,5,5,normalization_method
+2,0,1,1,uso_300ms_31.wav,10,7,3.1560332775115967,5,5,normalization_method
+3,0,1,1,uso_300ms_23.wav,7,8,2.9685447216033936,5,5,normalization_method
+4,0,1,1,uso_300ms_7.wav,1,10,212.9230923652649,5,5,normalization_method
+5,0,1,1,uso_300ms_15.wav,3,4,2.0467324256896973,5,5,normalization_method
+6,0,1,1,uso_300ms_59.wav,8,2,22.88902735710144,5,5,normalization_method
+7,0,1,1,uso_300ms_43.wav,6,2,17.88937735557556,5,5,normalization_method
+8,0,1,1,uso_300ms_15.wav,2,1,2.0936012268066406,5,5,normalization_method
+9,0,1,1,uso_300ms_95.wav,0,2,1.6405084133148191,5,5,normalization_method
+10,0,1,1,uso_300ms_87.wav,5,6,2.3435845375061035,5,5,normalization_method
+11,0,1,1,uso_300ms_83.wav,9,11,2.796682596206665,5,5,normalization_method
