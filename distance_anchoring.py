@@ -39,8 +39,7 @@ precomputed_USOs = slab.Precomputed([slab.Sound(os.path.join(USO_file_folder, f)
 # initialize setup to connect to the processors
 def initialize_setup(normalization_algorithm="rms", normalization_sound_type="syllable"): # TODO: attributes can be removed
     global normalization_method
-    procs = [["RX81", "RX8", DIR / "data" / "rcx" / "cathedral_play_buf.rcx"],
-             ["RP2", "RP2", DIR / "data" / "rcx" / "button_numpad.rcx"]] # is redundant
+    procs = ["RX81", "RX8", DIR / "data" / "rcx" / "cathedral_play_buf.rcx"]
     freefield.initialize("cathedral", device=procs, zbus=False, connection="USB")
     freefield.SETUP = "cathedral"
     freefield.SPEAKERS = freefield.read_speaker_table()
@@ -53,7 +52,7 @@ def initialize_setup(normalization_algorithm="rms", normalization_sound_type="sy
     freefield.set_logger("DEBUG")
 
 # main code for running the experiments training phase
-def training(sub_id, block_id, task_id, training_duration=90, isi=2):
+def training(sub_id, block_id, task_id, n_reps=45, isi=2):
 
     # set condition for this block
     if task_id == 1:
@@ -65,7 +64,7 @@ def training(sub_id, block_id, task_id, training_duration=90, isi=2):
 
     # initialize sequence with corresponding conditions
     # precomputed_USOs = get_precomputed_USOs(ms=300)
-    seq = slab.Trialsequence(conditions=int(training_duration / isi))
+    seq = slab.Trialsequence(conditions=1, n_reps=n_reps)
     for trial in seq:
         # get random USO sound
         random_index = random.randint(0, len(precomputed_USOs) - 1)
@@ -73,7 +72,7 @@ def training(sub_id, block_id, task_id, training_duration=90, isi=2):
         stim_id = USO_file_names[random_index]
 
         # read slider value and convert it to speaker value
-        slider_value = get_slider_value() # button has to be pressed all the time
+        slider_value = get_slider_value() # TODO: fixing issue that button can't be pressed all the time
         # slider_value = seq.this_n
         closest_speaker = min(speaker_dic, key=lambda k: abs(speaker_dic[k] - slider_value)) # calculates speaker which is closest to distance of the slider value
         # play USO from speaker corresponding to to slider value
@@ -86,17 +85,17 @@ def training(sub_id, block_id, task_id, training_duration=90, isi=2):
         print('Trial:', event_id)
         print('Slider value', slider_value)
         print('Closest speaker', closest_speaker)
-        freefield.flush_buffers(processor='RX81')
-        time.sleep(0) # used to be isi
+        # freefield.flush_buffers(processor='RX81')
+        freefield.write(tag='data0', value=0, processors='RX81') # TODO: is it enough or do I have to send all other buffer to 99
+        time.sleep(isi)
         # save results
         save_results(event_id=event_id, sub_id=sub_id, block_id=block_id, task_id=task_id,
-                     stim_id=stim_id, speaker_id=closest_speaker, response_time=1,
-                     response=slider_value, training_duration=training_duration,
-                     isi=isi, normalization_method='normalization_method')
+                     stim_id=stim_id, speaker_id=closest_speaker, response_time=0,
+                     response=slider_value, n_reps=n_reps, isi=isi)
     print("Done with training")
 
 # main code for running the experiments test phase
-def test(sub_id, block_id, task_id, n_reps, play_via='cathedral'):
+def test(sub_id, block_id, task_id, n_reps, isi=2):
 
     # set condition for this block
     if task_id == 1: # n_reps = 5 for 55 trials
@@ -131,10 +130,7 @@ def test(sub_id, block_id, task_id, n_reps, play_via='cathedral'):
 
         # wait for response and read it
         time_before = time.time()
-        if play_via == 'cathedral':
-            response = get_slider_value()
-        else:
-            response = input("Enter estimated distance (in m) here: ")
+        response = get_slider_value()
         time_after = time.time()
 
         # finish this trial
@@ -143,18 +139,18 @@ def test(sub_id, block_id, task_id, n_reps, play_via='cathedral'):
         print('Trial:', event_id)
         print('speaker_id', speaker)
         print('response', response)
-        if play_via == 'cathedral':
-            freefield.flush_buffers(processor='RX81')
-        time.sleep(USO.duration)
+        # freefield.flush_buffers(processor='RX81')
+        freefield.write(tag='data0', value=0, processors='RX81') # clear buffer
+        time.sleep(isi) #TODO: think about isi
 
         # save data event by event
         save_results(event_id=event_id, sub_id=sub_id, block_id=block_id, task_id=task_id,
                      stim_id=stim_id, speaker_id=speaker, response=response,
-                     response_time=response_time, training_duration=5, isi=5, normalization_method='normalization_method')
+                     response_time=response_time, n_reps=n_reps, isi=isi)
     print("Done with test")
 
 
-def save_results(event_id, sub_id, block_id, task_id, stim_id, speaker_id, response, response_time, training_duration, isi, normalization_method): # TODO: think about datastructure
+def save_results(event_id, sub_id, block_id, task_id, stim_id, speaker_id, response, response_time, n_reps, isi): # TODO: think about datastructure
 
     # create file name
     file_name = DIR / 'results' / f'results_sub-{sub_id}_block-{block_id}_task-{task_id}.csv'
@@ -172,9 +168,8 @@ def save_results(event_id, sub_id, block_id, task_id, stim_id, speaker_id, respo
     speaker_id = str(speaker_id)
     response = int(response)
     response_time = float(response_time)
-    training_duration = int(training_duration)
+    n_reps = int(n_reps)
     isi = int(isi)
-    normalization_method = str(normalization_method)
 
     # building current data structure
     new_row = {'event_id' : event_id,
@@ -185,9 +180,8 @@ def save_results(event_id, sub_id, block_id, task_id, stim_id, speaker_id, respo
         'speaker_id' : speaker_id,
         'response' : response,
         'response_time' : response_time,
-        'training_duration' : training_duration,
-        'isi' : isi,
-        'normalization_method' : normalization_method}
+        'n_reps' : n_reps,
+        'isi' : isi}
 
     # add row to df
     df_curr_results = df_curr_results._append(new_row, ignore_index=True)
@@ -198,7 +192,9 @@ def get_slider_value(serial_port=slider, in_metres=True):
     serial_port.flushInput()
     buffer_string = ''
     while True:
-        buffer_string = buffer_string + serial_port.read(serial_port.inWaiting()).decode("ascii")
+        while serial_port.inWaiting() == 0: # added waiting loop until new values are in buffer
+            time.sleep(0.05)
+        buffer_string += serial_port.read(serial_port.inWaiting()).decode("ascii")
         if '\n' in buffer_string:
             lines = buffer_string.split('\n')  # Guaranteed to have at least 2 entries
             last_received = lines[-2].rstrip()
