@@ -14,17 +14,17 @@ DIR = pathlib.Path(os.curdir)
 normalization_method = None
 port = "COM5"
 slider = serial.Serial(port, baudrate=9600, timeout=0, rtscts=False)
-speaker_dict = {0: 2.10,
-                1: 2.96,
-                2: 3.84,
-                3: 4.74,
-                4: 5.67,
-                5: 6.62,
-                6: 7.60,
-                7: 8.80,
-                8: 9.64,
-                9: 10.70,
-                10: 11.78} # TODO: adjust values to current setup
+speaker_dict = {0: 2.00,
+                1: 3.00,
+                2: 4.00,
+                3: 5.00,
+                4: 6.00,
+                5: 7.00,
+                6: 8.00,
+                7: 9.00,
+                8: 10.00,
+                9: 11.00,
+                10: 11.80} # TODO: adjust values to current setup
 
 #def get_precomputed_USOs (ms):
 #    USO_file_folder = DIR / 'data' / 'cutted_USOs' / f'uso_{ms}ms'
@@ -32,8 +32,8 @@ speaker_dict = {0: 2.10,
   #  precomputed_USOs = slab.Precomputed([slab.Sound(os.path.join(USO_file_folder, f)) for f in USO_file_names]) # precompute sound files out of USO name list
    # return precomputed_USOs, USO_file_names
 
-USO_file_folder = DIR / 'data' / 'cutted_USOs' / f'uso_300ms'
-USO_file_names = os.listdir(DIR / 'data' / 'cutted_USOs' / f'uso_300ms')
+USO_file_folder = DIR / 'data' / 'cutted_USOs' / 'uso_300ms'
+USO_file_names = os.listdir(DIR / 'data' / 'cutted_USOs' / 'uso_300ms')
 precomputed_USOs = slab.Precomputed([slab.Sound(os.path.join(USO_file_folder, f)) for f in USO_file_names])
 
 # initialize setup to connect to the processors
@@ -63,18 +63,18 @@ def training(sub_id, block_id, task_id, n_reps=45, isi=2):
         return print('You can only set task_id to 1 or 2')
 
     # initialize sequence with corresponding conditions
-    # precomputed_USOs = get_precomputed_USOs(ms=300)
     seq = slab.Trialsequence(conditions=1, n_reps=n_reps)
     for trial in seq:
+        
         # get random USO sound
         random_index = random.randint(0, len(precomputed_USOs) - 1)
         USO = slab.Sound(precomputed_USOs[random_index])
         stim_id = USO_file_names[random_index]
 
         # read slider value and convert it to speaker value
-        slider_value = get_slider_value() # TODO: fixing issue that button can't be pressed all the time
-        # slider_value = seq.this_n
+        slider_value = get_slider_value()
         closest_speaker = min(speaker_dic, key=lambda k: abs(speaker_dic[k] - slider_value)) # calculates speaker which is closest to distance of the slider value
+       
         # play USO from speaker corresponding to to slider value
         USO = apply_mgb_equalization(signal=USO, speaker=freefield.pick_speakers(closest_speaker)[0])
         freefield.set_signal_and_speaker(signal=USO, speaker=closest_speaker, equalize=False)
@@ -88,6 +88,7 @@ def training(sub_id, block_id, task_id, n_reps=45, isi=2):
         # freefield.flush_buffers(processor='RX81')
         freefield.write(tag='data0', value=0, processors='RX81') # TODO: is it enough or do I have to send all other buffer to 99
         time.sleep(isi)
+        
         # save results
         save_results(event_id=event_id, sub_id=sub_id, block_id=block_id, task_id=task_id,
                      stim_id=stim_id, speaker_id=closest_speaker, response_time=0,
@@ -113,20 +114,18 @@ def test(sub_id, block_id, task_id, n_reps, isi=2):
 
     # initialize sequence with corresponding conditions
     speakers = list(range(nearest_speaker, farthest_speaker + 1))
-    #precomputed_USOs = get_precomputed_USOs(ms=300)
     seq = slab.Trialsequence(conditions=speakers, n_reps=n_reps)
     for speaker in seq:
+        
         # get random USO sound
         random_index = random.randint(0, len(precomputed_USOs) - 1)
         USO = slab.Sound(precomputed_USOs[random_index])
         stim_id = USO_file_names[random_index]
-        # prepare and playing USO on laptop or in cathedral
-        if play_via == 'cathedral':
-            USO = apply_mgb_equalization(signal=USO, speaker=freefield.pick_speakers(speaker)[0])
-            freefield.set_signal_and_speaker(signal=USO, speaker=speaker, equalize=False)
-            freefield.play(kind=1, proc='RX81')
-        else:
-            USO.play()
+        
+        # prepare and playing USO
+        USO = apply_mgb_equalization(signal=USO, speaker=freefield.pick_speakers(speaker)[0])
+        freefield.set_signal_and_speaker(signal=USO, speaker=speaker, equalize=False)
+        freefield.play(kind=1, proc='RX81')
 
         # wait for response and read it
         time_before = time.time()
@@ -162,14 +161,14 @@ def save_results(event_id, sub_id, block_id, task_id, stim_id, speaker_id, respo
     # convert values in desired data types
     event_id = int(event_id)
     sub_id = int(sub_id)
-    block_id = str(block_id)
+    block_id = int(block_id)
     task_id = int(task_id) # condition 1, 2 or 3
     stim_id = str(stim_id)
-    speaker_id = str(speaker_id)
-    response = int(response)
+    speaker_id = int(speaker_id)
+    response = float(response)
     response_time = float(response_time)
-    n_reps = int(n_reps)
-    isi = int(isi)
+    n_reps = float(n_reps)
+    isi = float(isi)
 
     # building current data structure
     new_row = {'event_id' : event_id,

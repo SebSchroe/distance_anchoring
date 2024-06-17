@@ -2,7 +2,7 @@ import serial
 import numpy as np
 import time
 
-port = "COM3"
+port = "COM3" # depending on USB-Port
 slider = serial.Serial(port, baudrate=9600, timeout=0, rtscts=False)
 
 # main function to get slider value
