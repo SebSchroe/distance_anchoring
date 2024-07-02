@@ -50,7 +50,7 @@ def initialize_setup():
     freefield.set_logger("DEBUG") #TODO: Lukas is using 'INFO' now.
 
 # main code for running the experiments training phase
-def training(cond_id, sub_id, block_id, task_id, n_reps=45, isi=2):
+def training(cond_id, sub_id, block_id, task_id, n_reps=1, isi=2):
 
     # set condition for this block
     if task_id == 1:
@@ -84,7 +84,7 @@ def training(cond_id, sub_id, block_id, task_id, n_reps=45, isi=2):
         print(f'Slider value: {slider_value}')
         print(f'Closest speaker: {closest_speaker}')
         # freefield.flush_buffers(processor='RX81')
-        freefield.write(tag='data0', value=0, processors='RX81') # TODO: is it enough or do I have to send all other buffer to 99 or do I dont have to flush the buffer. Only fush buffer after experiment
+        # freefield.write(tag='data0', value=0, processors='RX81') # TODO: is it enough or do I have to send all other buffer to 99 or do I dont have to flush the buffer. Only fush buffer after experiment
         time.sleep(isi)
 
         # save results
@@ -94,16 +94,16 @@ def training(cond_id, sub_id, block_id, task_id, n_reps=45, isi=2):
     print("Done with training")
 
 # main code for running the experiments test phase
-def test(cond_id, sub_id, block_id, task_id, n_reps, isi=0): # TODO: think about isi
+def test(cond_id, sub_id, block_id, task_id, n_reps=1, isi=0): # TODO: think about isi
 
     # set condition for this block
-    if task_id == 1: # n_reps = 5 for 55 trials
+    if task_id == 1: # n_reps = 8 for 88 trials
         nearest_speaker = 0
         farthest_speaker = 10
-    elif task_id == 2: # n_reps = 9 for 54 trials
+    elif task_id == 2: # n_reps = 15 for 90 trials
         nearest_speaker = 1
         farthest_speaker = 6
-    elif task_id == 3:# n_reps = 5 for 55 trials
+    elif task_id == 3:# n_reps = 8 for 88 trials
         nearest_speaker = 4
         farthest_speaker = 9
     else:
@@ -136,7 +136,7 @@ def test(cond_id, sub_id, block_id, task_id, n_reps, isi=0): # TODO: think about
         print('speaker_id', speaker)
         print('response', response)
         # freefield.flush_buffers(processor='RX81')
-        freefield.write(tag='data0', value=0, processors='RX81') # clear buffer
+        # freefield.write(tag='data0', value=0, processors='RX81') # clear buffer
         time.sleep(isi)
 
         # save data event by event
