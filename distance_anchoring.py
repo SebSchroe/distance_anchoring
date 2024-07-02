@@ -24,7 +24,7 @@ speaker_dict = {0: 2.00,
                 7: 9.00,
                 8: 10.00,
                 9: 11.00,
-                10: 11.80} # TODO: adjust values to current setup
+                10: 12.00}
 
 # TODO: add function to test speaker
 # TODO: adjust code to new logging-thing
@@ -199,7 +199,7 @@ def get_slider_value(serial_port=slider, in_metres=True):
             if last_received:
                 last_received = int(last_received)
                 if in_metres:
-                    last_received = np.interp(last_received, xp=[0, 1023], fp=[0, 15]) - 1.5
+                    last_received = np.interp(last_received, xp=[0, 1023], fp=[0, 15]) - 2.0
                 return last_received
 
 # new equalization method (universally applicable)
