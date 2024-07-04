@@ -2,7 +2,7 @@ import serial
 import numpy as np
 import time
 
-port = "COM3" # depending on USB-Port
+port = "COM5" # depending on USB-Port
 slider = serial.Serial(port, baudrate=9600, timeout=0, rtscts=False)
 
 # main function to get slider value
@@ -19,7 +19,7 @@ def get_slider_value(serial_port=slider, in_metres=True):
             if last_received:
                 last_received = int(last_received)
                 if in_metres:
-                    last_received = np.interp(last_received, xp=[0, 1023], fp=[0, 15]) - 1.5
+                    last_received = np.interp(last_received, xp=[0, 1023], fp=[0, 15]) - 2.0
                 return last_received
 
 # checking loop that returns values, when button in pressed
