@@ -28,6 +28,7 @@ speaker_dict = {0: 2.00,
 
 # TODO: add function to test speaker
 # TODO: adjust code to new logging-thing
+# TODO: add variable for condition
 # TODO: remove redundant code in training() and test()
 
 USO_file_folder = DIR / 'data' / 'cutted_USOs' / 'uso_300ms'
@@ -40,10 +41,10 @@ def initialize_setup():
     freefield.initialize("cathedral", device=procs, zbus=False, connection="USB")
     freefield.SETUP = "cathedral"
     freefield.SPEAKERS = freefield.read_speaker_table()
-    freefield.set_logger("DEBUG")
+    freefield.set_logger("DEBUG") #TODO: Lukas is using 'INFO' now.
 
 # main code to execute each block
-def start_block(sub_id, cond_id, block_id, kind='experiment'):
+def start_block(kind='experiment', sub_id, cond_id, block_id):
     def execute_procedure(procedure, task_id, n_reps, isi):
         procedure(sub_id=sub_id, cond_id=cond_id, block_id=block_id, task_id=task_id, n_reps=n_reps, isi=isi)
 
