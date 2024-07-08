@@ -44,7 +44,7 @@ def initialize_setup():
     freefield.set_logger("DEBUG") #TODO: Lukas is using 'INFO' now.
 
 # main code to execute each block
-def start_block(kind='experiment', sub_id, cond_id, block_id):
+def start_block(sub_id, cond_id, block_id, kind='experiment'):
     def execute_procedure(procedure, task_id, n_reps, isi):
         procedure(sub_id=sub_id, cond_id=cond_id, block_id=block_id, task_id=task_id, n_reps=n_reps, isi=isi)
 
