@@ -29,13 +29,7 @@ speaker_dict = {0: 2.00,
 # TODO: add function to test speaker
 # TODO: adjust code to new logging-thing
 # TODO: add variable for condition
-# TODO: smooth out training() and test() with more functions
-
-#def get_precomputed_USOs (ms):
-#    USO_file_folder = DIR / 'data' / 'cutted_USOs' / f'uso_{ms}ms'
- #   USO_file_names = os.listdir(DIR / 'data' / 'cutted_USOs' / f'uso_{ms}ms')
-  #  precomputed_USOs = slab.Precomputed([slab.Sound(os.path.join(USO_file_folder, f)) for f in USO_file_names]) # precompute sound files out of USO name list
-   # return precomputed_USOs, USO_file_names
+# TODO: remove redundant code in training() and test()
 
 USO_file_folder = DIR / 'data' / 'cutted_USOs' / 'uso_300ms'
 USO_file_names = os.listdir(DIR / 'data' / 'cutted_USOs' / 'uso_300ms')
@@ -49,8 +43,57 @@ def initialize_setup():
     freefield.SPEAKERS = freefield.read_speaker_table()
     freefield.set_logger("DEBUG") #TODO: Lukas is using 'INFO' now.
 
-# main code for running the experiments training phase
-def training(cond_id, sub_id, block_id, task_id, n_reps=1, isi=2):
+# main code to execute each block
+def start_block(kind='experiment', sub_id, cond_id, block_id):
+    def execute_procedure(procedure, task_id, n_reps, isi):
+        procedure(sub_id=sub_id, cond_id=cond_id, block_id=block_id, task_id=task_id, n_reps=n_reps, isi=isi)
+
+    if kind == 'experiment':
+        if cond_id == 1:
+            if block_id in [1, 2]:
+                execute_procedure(test, 1, 8, 0.3)
+            elif block_id in [3, 5]:
+                execute_procedure(training, 1, 90, 2)
+            elif block_id == 4:
+                execute_procedure(test, 2, 15, 0.3)
+            elif block_id == 6:
+                execute_procedure(test, 3, 15, 0.3)
+            else:
+                print('block_id can only be 1 to 6')
+
+        elif cond_id == 2:
+            if block_id in [1, 2, 4]:
+                execute_procedure(test, 2, 15, 0.3)
+            elif block_id in [3, 5]:
+                execute_procedure(training, 2, 90, 2)
+            elif block_id == 6:
+                execute_procedure(test, 1, 8, 0.3)
+            else:
+                print('block_id can only be 1 to 6')
+        else:
+            print('cond_id can only be 1 or 2')
+
+    elif kind == 'check':
+        if cond_id == 1:
+            if block_id == 1:
+                execute_procedure(test, 1, 1, 0.3)
+            elif block_id == 3:
+                execute_procedure(training, 1, 10, 2)
+            else:
+                print('Please use block_id 1 for test checking and block_id 3 for training checking')
+
+        elif cond_id == 2:
+            if block_id == 1:
+                execute_procedure(test, 2, 2, 0.3)
+            elif block_id == 3:
+                execute_procedure(training, 2, 10, 2)
+            else:
+                print('Please use block_id 1 for test checking and block_id 3 for training checking')
+    else:
+        print('Please choose between experiment or check')
+
+# main code for executing training block
+def training(sub_id, cond_id, block_id, task_id, n_reps, isi):
 
     # set condition for this block
     if task_id == 1:
@@ -83,18 +126,16 @@ def training(cond_id, sub_id, block_id, task_id, n_reps=1, isi=2):
         print(f'Trial: {event_id}')
         print(f'Slider value: {slider_value}')
         print(f'Closest speaker: {closest_speaker}')
-        # freefield.flush_buffers(processor='RX81')
-        # freefield.write(tag='data0', value=0, processors='RX81') # TODO: is it enough or do I have to send all other buffer to 99 or do I dont have to flush the buffer. Only fush buffer after experiment
         time.sleep(isi)
 
         # save results
-        save_results(cond_id=cond_id, sub_id=sub_id, block_id=block_id, task_id=task_id,
+        save_results(sub_id=sub_id, cond_id=cond_id, block_id=block_id, task_id=task_id,
                      event_id=event_id, stim_id=stim_id, speaker_id=closest_speaker, response=slider_value,
                      response_time=np.nan, n_reps=n_reps, isi=isi)
     print("Done with training")
 
-# main code for running the experiments test phase
-def test(cond_id, sub_id, block_id, task_id, n_reps=1, isi=0): # TODO: think about isi
+# main code for executing test block
+def test(sub_id, cond_id, block_id, task_id, n_reps, isi): # TODO: think about isi
 
     # set condition for this block
     if task_id == 1: # n_reps = 8 for 88 trials
@@ -121,7 +162,6 @@ def test(cond_id, sub_id, block_id, task_id, n_reps=1, isi=0): # TODO: think abo
 
         # prepare and playing USO
         USO = apply_mgb_equalization(signal=USO, speaker=freefield.pick_speakers(speaker)[0])
-        # set_multiple_signals(signals=[USO], speakers=[speaker], equalize=True, max_n_samples=1000, mgb_loudness=30, fluc=0)
         freefield.set_signal_and_speaker(signal=USO, speaker=speaker, equalize=False)
         freefield.play(kind=1, proc='RX81')
 
@@ -136,29 +176,27 @@ def test(cond_id, sub_id, block_id, task_id, n_reps=1, isi=0): # TODO: think abo
         print(f'Trial: {event_id}')
         print(f'speaker_id: {speaker}')
         print(f'response: {slider_value}')
-        # freefield.flush_buffers(processor='RX81')
-        # freefield.write(tag='data0', value=0, processors='RX81') # clear buffer
         time.sleep(isi)
 
         # save data event by event
-        save_results(cond_id=cond_id, sub_id=sub_id, block_id=block_id, task_id=task_id,
+        save_results(sub_id=sub_id, cond_id=cond_id, block_id=block_id, task_id=task_id,
                      event_id=event_id, stim_id=stim_id, speaker_id=speaker, response=slider_value, response_time=response_time,
                      n_reps=n_reps, isi=isi)
     print("Done with test")
 
 
-def save_results(cond_id, sub_id, block_id, task_id, event_id, stim_id, speaker_id, response, response_time, n_reps, isi):
+def save_results(sub_id, cond_id, block_id, task_id, event_id, stim_id, speaker_id, response, response_time, n_reps, isi):
 
     # create file name
-    file_name = DIR / 'results' / f'results_cond-{cond_id}_sub-{sub_id}_block-{block_id}_task-{task_id}.csv'
+    file_name = DIR / 'results' / f'results_sub-{sub_id}_cond-{cond_id}_block-{block_id}_task-{task_id}.csv'
     if file_name.exists():
         df_curr_results = pd.read_csv(file_name)
     else:
         df_curr_results = pd.DataFrame()
 
     # convert values in desired data types
-    cond_id = int(cond_id)
     sub_id = int(sub_id)
+    cond_id = int(cond_id)
     block_id = int(block_id)
     task_id = int(task_id)
     event_id = int(event_id)
@@ -170,8 +208,8 @@ def save_results(cond_id, sub_id, block_id, task_id, event_id, stim_id, speaker_
     isi = float(isi)
 
     # building current data structure
-    new_row = {'cond_id' : cond_id,
-        'sub_id' : sub_id,
+    new_row = {'sub_id' : sub_id,
+        'cond_id' : cond_id,
         'block_id' : block_id,
         'task_id' : task_id,
         'event_id' : event_id,
@@ -225,37 +263,3 @@ def apply_mgb_equalization(signal, speaker, mgb_loudness=30, fluc=0):
 def get_speaker_normalization_level(speaker):
     a, b, c = get_log_parameters(speaker.distance)
     return logarithmic_func(x=30, a=a, b=b, c=c)
-
-def set_ids(cond_id, block_id):
-    if cond_id == 1:
-        if block_id == 6:
-            task_id = 3
-        elif block_id == 4:
-            task_id = 2
-        else:
-            task_id = 1
-        return block_id, task_id
-    if cond_id == 2:
-        if block_id == 6:
-            task_id = 1
-        else:
-            task_id = 2
-    return block_id, task_id
-
-def set_multiple_signals(signals, speakers, equalize=True, mgb_loudness=30, fluc=0, max_n_samples=80000):
-    freefield.write(tag="playbuflen", value=max_n_samples, processors="RX81")
-    for i in range(len(signals)):
-        if equalize:
-            signals[i] = apply_mgb_equalization(signals[i], speakers[i], mgb_loudness, fluc)
-        speaker_chan = speakers[i].index + 1
-        data = np.pad(signals[i].data, ((0, max_n_samples - len(signals[i].data)), (0, 0)), 'constant')
-        if len(data.shape) == 2 and data.shape[1] == 2:
-            data = np.mean(data, axis=1)
-        freefield.write(tag=f"data{i}", value=data, processors="RX81")
-        freefield.write(tag=f"chan{i}", value=speaker_chan, processors="RX81")
-    time.sleep(0.1)
-    for i in range(len(signals), 8):
-        freefield.write(tag=f"chan{i}", value=99, processors="RX81")
-        time.sleep(0.1)
-    time.sleep(0.1)
-
