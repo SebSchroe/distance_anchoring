@@ -23,5 +23,5 @@ task_id:    1 -> nearest_speaker = 0, farthest_speaker = 10
 distance_anchoring.initialize_setup()
 
 # start experiment block by block
-distance_anchoring.start_block(sub_id=sub_id, cond_id=cond_id, block_id=block_id, kind='check')
+distance_anchoring.start_block(sub_id=sub_id, cond_id=cond_id, block_id=block_id, kind='check') # 'check' or 'experiment'
 freefield.flush_buffers(processor='RX81')
