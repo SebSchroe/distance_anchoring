@@ -5,10 +5,10 @@ import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
 
-sub_id = 1
-cond_id = 1
-block_id = 6
-task_id = 3
+sub_id = 2
+cond_id = 2
+block_id = 1
+task_id = 2
 
 speaker_dict = {0: 2.00,
                 1: 3.00,

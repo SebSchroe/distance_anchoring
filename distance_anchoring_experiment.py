@@ -3,9 +3,9 @@ import freefield
 import distance_anchoring
 
 # set global variables
-sub_id = 0
-cond_id = 1
-block_id = 3
+sub_id = 2
+cond_id = 2
+block_id = 6
 
 #TODO: change order of sub_id and cond_id everywhere
 """
@@ -23,5 +23,5 @@ task_id:    1 -> nearest_speaker = 0, farthest_speaker = 10
 distance_anchoring.initialize_setup()
 
 # start experiment block by block
-distance_anchoring.start_block(sub_id=sub_id, cond_id=cond_id, block_id=block_id, kind='check') # 'check' or 'experiment'
+distance_anchoring.start_block(sub_id=sub_id, cond_id=cond_id, block_id=block_id, kind='experiment') # 'check' or 'experiment'
 freefield.flush_buffers(processor='RX81')
