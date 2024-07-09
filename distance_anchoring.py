@@ -124,7 +124,7 @@ def training(sub_id, cond_id, block_id, task_id, n_reps, isi):
         # finish this trial
         event_id = seq.this_n + 1
         print(f'Trial: {event_id}')
-        print(f'Slider value: {slider_value}')
+        print(f'Slider value: {slider_value:.2f}')
         print(f'Closest speaker: {closest_speaker}')
         time.sleep(isi)
 
@@ -175,7 +175,7 @@ def test(sub_id, cond_id, block_id, task_id, n_reps, isi): # TODO: think about i
         event_id = seq.this_n + 1
         print(f'Trial: {event_id}')
         print(f'speaker_id: {speaker}')
-        print(f'response: {slider_value}')
+        print(f'slider_value: {slider_value:.2f}')
         time.sleep(isi)
 
         # save data event by event
