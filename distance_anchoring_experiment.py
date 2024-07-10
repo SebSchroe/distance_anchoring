@@ -3,8 +3,8 @@ import freefield
 import distance_anchoring
 
 # set global variables
-sub_id = 2
-cond_id = 2
+sub_id = 3
+cond_id = 1
 block_id = 6
 
 #TODO: change order of sub_id and cond_id everywhere
