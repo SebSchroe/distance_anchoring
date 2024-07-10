@@ -62,7 +62,7 @@ def single_plot(sub_id, cond_id, block_id, x_values, y_values):
 def multi_plot(sub_id, cond_id, x_values, y_values):
     
     # prepare multi plots
-    fig, axes = plt.subplots(1, 3, figsize=(18, 8))
+    fig, axes = plt.subplots(3, 1, figsize=(5, 12))
     index = 0
     
     # build each subplot
