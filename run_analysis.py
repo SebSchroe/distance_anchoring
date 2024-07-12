@@ -2,8 +2,8 @@
 import analysis
 
 # global variables
-sub_id = 1
-cond_id = 2
+sub_id = 4
+cond_id = 1
 block_id = 6
 
 x_values = 'speaker_distance'
