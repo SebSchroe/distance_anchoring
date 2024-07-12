@@ -31,8 +31,8 @@ speaker_dict = {0: 2.00,
 # TODO: add variable for condition
 # TODO: remove redundant code in training() and test()
 
-USO_file_folder = DIR / 'data' / 'cutted_USOs' / 'uso_300ms'
-USO_file_names = os.listdir(DIR / 'data' / 'cutted_USOs' / 'uso_300ms')
+USO_file_folder = DIR / 'data' / 'cutted_USOs' / 'uso_300ms_new'
+USO_file_names = os.listdir(DIR / 'data' / 'cutted_USOs' / 'uso_300ms_new')
 precomputed_USOs = slab.Precomputed([slab.Sound(os.path.join(USO_file_folder, f)) for f in USO_file_names])
 
 # initialize setup to connect to the processors
