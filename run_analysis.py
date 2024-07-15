@@ -4,13 +4,11 @@ import analysis
 # global variables
 sub_id = 4
 cond_id = 1
-block_id = 6
 
 x_values = 'speaker_distance'
 y_values = 'response'
 
-# single plot
-# analysis.single_plot(sub_id=sub_id, cond_id=cond_id, block_id=block_id, x_values=x_values, y_values=y_values)
-
 # multi plot
-analysis.multi_plot(sub_id=sub_id, cond_id=cond_id, x_values=x_values, y_values=y_values)
+#analysis.plot_tests(sub_id=sub_id, cond_id=cond_id, x_values=x_values, y_values=y_values)
+
+analysis.split_block_1(sub_id=sub_id, cond_id=cond_id)
