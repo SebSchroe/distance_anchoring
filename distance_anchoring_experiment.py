@@ -3,10 +3,10 @@ import freefield
 import distance_anchoring_copy
 
 # set global variables
-sub_id = 4
+sub_id = 0
 cond_id = 1
-block_id = 6
-kind = 'experiment'
+block_id = 3
+kind = 'check'
 
 """
 kind:       experiment -> 90 trials each

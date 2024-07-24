@@ -113,7 +113,7 @@ def training(sub_id, cond_id, block_id, task_id, n_reps, isi):
 
         # cut USO
         samplerate = USO.samplerate
-        random_duration = random.choice([0.3, 0.2, 0.1, 0.05, 0.025])
+        random_duration = random.choice([0.3, 0.15, 0.03]) #DOTO: think about different durations
         new_n_samples = int(samplerate * random_duration)
         USO.data = USO.data[:new_n_samples]
 
@@ -125,17 +125,20 @@ def training(sub_id, cond_id, block_id, task_id, n_reps, isi):
         USO = apply_mgb_equalization(signal=USO, speaker=freefield.pick_speakers(closest_speaker)[0])
         freefield.set_signal_and_speaker(signal=USO, speaker=closest_speaker, equalize=False)
         freefield.play(kind=1, proc='RX81')
+        freefield.write(tag='data0', value=0, processors='RX81') # has to be added, otherwise signal is played from different speakers at once
 
         # finish this trial
         event_id = seq.this_n + 1
         print(f'Trial: {event_id}')
+        print(f'Samplerate: {USO.samplerate}, n_samples: {USO.n_samples}, Duration: {USO.duration:.3f}')
         print(f'Slider value: {slider_value:.2f}')
         print(f'Closest speaker: {closest_speaker}')
         time.sleep(isi)
 
         # save results
         save_results(sub_id=sub_id, cond_id=cond_id, block_id=block_id, task_id=task_id,
-                     event_id=event_id, stim_id=stim_id, speaker_id=closest_speaker, response=slider_value,
+                     event_id=event_id, stim_id=stim_id, stim_duration=random_duration,
+                     speaker_id=closest_speaker, response=slider_value,
                      response_time=np.nan, n_reps=n_reps, isi=isi)
     print("Done with training")
 
@@ -165,9 +168,6 @@ def test(sub_id, cond_id, block_id, task_id, n_reps, isi): # TODO: think about i
         USO = slab.Sound(precomputed_USOs[random_index])
         stim_id = USO_file_names[random_index]
 
-
-        USO_cutted =
-
         # prepare and playing USO
         USO = apply_mgb_equalization(signal=USO, speaker=freefield.pick_speakers(speaker)[0])
         freefield.set_signal_and_speaker(signal=USO, speaker=speaker, equalize=False)
@@ -193,7 +193,7 @@ def test(sub_id, cond_id, block_id, task_id, n_reps, isi): # TODO: think about i
     print("Done with test")
 
 
-def save_results(sub_id, cond_id, block_id, task_id, event_id, stim_id, speaker_id, response, response_time, n_reps, isi):
+def save_results(sub_id, cond_id, block_id, task_id, event_id, stim_id, stim_duration, speaker_id, response, response_time, n_reps, isi):
 
     # create file name
     file_name = DIR / 'results' / f'results_sub-{sub_id}_cond-{cond_id}_block-{block_id}_task-{task_id}.csv'
@@ -209,6 +209,7 @@ def save_results(sub_id, cond_id, block_id, task_id, event_id, stim_id, speaker_
     task_id = int(task_id)
     event_id = int(event_id)
     stim_id = str(stim_id)
+    stim_duration = float(stim_duration)
     speaker_id = int(speaker_id)
     response = float(response)
     response_time = float(response_time)
@@ -222,6 +223,7 @@ def save_results(sub_id, cond_id, block_id, task_id, event_id, stim_id, speaker_
         'task_id' : task_id,
         'event_id' : event_id,
         'stim_id' : stim_id,
+        'stim_duration': stim_duration,
         'speaker_id' : speaker_id,
         'response' : response,
         'response_time' : response_time,
