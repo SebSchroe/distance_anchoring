@@ -34,16 +34,20 @@ def predict_sample_size(effect_size, alpha=0.05, power=0.8, alternative='two-sid
     
     print(f'Predicted sample size per condition: {sample_size}')
 
+# linear regression diagnostics
 def create_diagnostic_plots(sub_id, cond_id, block_id):
     '''
     1. .residual_plot() -> Residuals vs Fittes values: checks if relationship between x and y is linear (linearity)
-    2. .qq_plot() -> Normal Q-Q: checks if errors/residuals are normally distibuted (normal districution)
+    2. .qq_plot() -> Normal Q-Q: checks if errors/residuals are normally distibuted (normality)
     3. .scale_location_plt() -> Scale-location: checks if the residual-variance is the same for every value of x (homoskedasticity)
     4. .leverage_plot() -> Residuals vs Leverage: checks if observations are independent of each other (outliers)
     '''
     
     # load data
-    df = get_df(sub_id, cond_id, block_id)
+    if sub_id == 'all':
+        df = get_concat_df(cond_id, block_id)
+    else:
+        df = get_df(sub_id, cond_id, block_id)
     
     # transform data
     df['speaker_distance'] = df['speaker_id'].apply(lambda x: get_speaker_distance(x, speaker_dict))
@@ -56,55 +60,16 @@ def create_diagnostic_plots(sub_id, cond_id, block_id):
     cls = LinearRegDiagnostic.LinearRegDiagnostic(model)
     vif, fig, ax = cls()
     print(vif)
-    
-def split_data(sub_id, cond_id):
-    
-    # load data depending on condition
-    if cond_id == 1:
-        block_id = 1
-    if cond_id == 2:
-        block_id = 6
-    df = get_df(sub_id, cond_id, block_id)
-    
-    # transform speaker_id to real speaker distance
-    df['speaker_distance'] = df['speaker_id'].apply(lambda x: get_speaker_distance(x, speaker_dict))
-    
-    # create df subsets of certain speaker range
-    df_1 = get_response_subset_df(df, 1, 6)
-    df_2 = get_response_subset_df(df, 4, 9)
-    
-    # do linear regression and get necessary values + coefficients
-    x_1, y_1, y_1_pred, regression_coefficients_1 = get_linear_regression_values(df_1, 'speaker_distance', 'response_subset')
-    x_2, y_2, y_2_pred, regression_coefficients_2 = get_linear_regression_values(df_2, 'speaker_distance', 'response_subset')
-    
-    
-    # plotting
-    plt.scatter(x_1, y_1, color='blue', alpha=0.25, edgecolors='None', label='Data points')
-    plt.plot(x_1, y_1_pred, color='blue', linewidth=1.5, label='Linear regression')
-    plt.text(0.03, 0.97, regression_coefficients_1, transform=plt.gca().transAxes,
-             verticalalignment='top', bbox=dict(boxstyle='round,pad=0.5', facecolor='white', alpha=0.5))
-    
-    plt.scatter(x_2, y_2, color='red', alpha=0.25, edgecolors='None', label='Data points')
-    plt.plot(x_2, y_2_pred, color='red', linewidth=1.5, label='Linear regression')
-    plt.text(0.97, 0.03, regression_coefficients_2, transform=plt.gca().transAxes,
-             verticalalignment='top', bbox=dict(boxstyle='round,pad=0.5', facecolor='white', alpha=0.5))
-    
-    plt.plot([0, 13], [0, 13], color='grey', linewidth=1.5, linestyle='--', label='Optimum')
-    
-    # layout
-    plt.xlabel('speaker_distance')
-    plt.ylabel('response')
-    plt.title(f'sub: {sub_id}, cond: {cond_id}, block: {block_id}')
-    plt.xlim(0, 13)
-    plt.ylim(0, 13)
-    plt.gca().set_aspect('equal', adjustable='box')
-    
-    plt.show()
-    
-    return x_1, y_1, y_1_pred, x_2, y_2, y_2_pred
 
-
-def plot_presented_vs_percieved_distance(sub_id, cond_id, x_values, y_values, split=False):
+# plot presented vs. percieved distances of test blocks 1, 4 and 6
+def plot_presented_vs_percieved_distance(sub_id, cond_id, split=False):
+    '''
+    sub_id: can be individual sub_id or 'all' for all data of certain condition
+    split: splits data of first block (condition 1) or last block (condition 2) in speaker subsets 1-6 and 4-9
+    '''
+    # set variables
+    x_values = 'speaker_distance'
+    y_values = 'response'
     
     # prepare multi plots
     fig, axes = plt.subplots(1, 3, figsize=(19, 4))
@@ -114,7 +79,10 @@ def plot_presented_vs_percieved_distance(sub_id, cond_id, x_values, y_values, sp
     for block_id in [1, 4, 6]:
         
         # load data
-        df = get_df(sub_id, cond_id, block_id)
+        if sub_id == 'all':
+            df = get_concat_df(cond_id, block_id)
+        else:
+            df = get_df(sub_id, cond_id, block_id)
         
         # transform speaker_id to corresponding speaker distance
         df['speaker_distance'] = df['speaker_id'].apply(lambda x: get_speaker_distance(x, speaker_dict))
@@ -134,13 +102,13 @@ def plot_presented_vs_percieved_distance(sub_id, cond_id, x_values, y_values, sp
             axes[index].plot([0, 13], [0, 13], color='grey', linewidth=1.5, linestyle='--', label='Optimum')
             
             # plot subset 1
-            axes[index].scatter(x_1, y_1, color='blue', alpha=0.25, edgecolors='None', label='Data points')
+            axes[index].scatter(x_1, y_1, color='blue', alpha=0.1, edgecolors='None', label='Data points')
             axes[index].plot(x_1, y_pred_1, color='blue', linewidth=1.5, label='Linear regression')
             axes[index].text(0.03, 0.97, regression_coefficients_1, transform=axes[index].transAxes,
                              verticalalignment='top', horizontalalignment='left', bbox=dict(boxstyle='round,pad=0.5', facecolor='white', alpha=0.5))
             
             # plot subset 2
-            axes[index].scatter(x_2, y_2, color='red', alpha=0.25, edgecolors='None', label='Data points')
+            axes[index].scatter(x_2, y_2, color='red', alpha=0.1, edgecolors='None', label='Data points')
             axes[index].plot(x_2, y_pred_2, color='red', linewidth=1.5, label='Linear regression')
             axes[index].text(0.97, 0.03, regression_coefficients_2, transform=axes[index].transAxes,
                              verticalalignment='bottom', horizontalalignment='right', bbox=dict(boxstyle='round,pad=0.5', facecolor='white', alpha=0.5))
@@ -160,7 +128,7 @@ def plot_presented_vs_percieved_distance(sub_id, cond_id, x_values, y_values, sp
             x, y, y_pred, regression_coefficients = get_linear_regression_values(df, f'{x_values}', f'{y_values}')
             
             # plotting
-            axes[index].scatter(x, y, color='blue', alpha=0.25, edgecolors='None', label='Data points')
+            axes[index].scatter(x, y, color='blue', alpha=0.1, edgecolors='None', label='Data points')
             axes[index].plot(x, y_pred, color='blue', linewidth=1.5, label='Linear regression')
             axes[index].plot([0, 13], [0, 13], color='grey', linewidth=1.5, linestyle='--', label='Optimum')
             axes[index].text(0.03, 0.97, regression_coefficients, transform=axes[index].transAxes,
@@ -178,6 +146,15 @@ def plot_presented_vs_percieved_distance(sub_id, cond_id, x_values, y_values, sp
     
     plt.tight_layout()
     plt.show()
+
+# plot average slopes and standard deviation
+def plot_average_slopes(sub_id, cond_id):
+    # load data individually per sub
+    place_holder = 1
+    # get slope of each sub
+    
+    # 
+
 
 def plot_differences(sub_id, cond_id, block_id):
     
@@ -201,6 +178,7 @@ def plot_differences(sub_id, cond_id, block_id):
     plt.plot(x, y_pred)
     plt.show()
 
+# help functions
 def get_response_subset_df(df, nearest_speaker, farthest_speaker):
     df['response_subset'] = np.where((df['speaker_id'] >= nearest_speaker) & (df['speaker_id'] <= farthest_speaker), df['response'], np.nan)
     response_subset = df[['speaker_id', 'speaker_distance', 'response_subset']].copy()
@@ -213,6 +191,25 @@ def get_df(sub_id, cond_id, block_id):
     file_path = DIR / 'results' / f'results_sub-{sub_id}_cond-{cond_id}_block-{block_id}_task-{task_id}.csv'
     df = pd.read_csv(file_path)
     return df
+
+def get_concat_df(cond_id, block_id):
+    
+    # create empty dataframe and get task id
+    concat_df = pd.DataFrame()
+    task_id = get_task_id(cond_id, block_id)
+    
+    # get sub_ids depending on cond_id
+    if cond_id == 1:
+        sub_ids = [1, 3, 4]
+    else:
+        sub_ids = [1, 2]
+    
+    # concatenate all dataframes into one merged df 
+    for sub_id in sub_ids:
+        file_path = DIR / 'results' / f'results_sub-{sub_id}_cond-{cond_id}_block-{block_id}_task-{task_id}.csv'
+        new_df = pd.read_csv(file_path)
+        concat_df = pd.concat([concat_df, new_df], axis=0, ignore_index=True)
+    return concat_df
 
 def calc_diff_presented_percieved(df):
     df['diff_presented_percieved'] = df['speaker_distance'] - df['response']
