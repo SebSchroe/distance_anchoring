@@ -120,6 +120,7 @@ def training(sub_id, cond_id, block_id, task_id, n_reps, isi):
         USO = apply_mgb_equalization(signal=USO, speaker=freefield.pick_speakers(closest_speaker)[0])
         freefield.set_signal_and_speaker(signal=USO, speaker=closest_speaker, equalize=False)
         freefield.play(kind=1, proc='RX81')
+        freefield.write(tag='data0', value=0, processors='RX81') # clear buffer
 
         # finish this trial
         event_id = seq.this_n + 1
@@ -164,6 +165,7 @@ def test(sub_id, cond_id, block_id, task_id, n_reps, isi): # TODO: think about i
         USO = apply_mgb_equalization(signal=USO, speaker=freefield.pick_speakers(speaker)[0])
         freefield.set_signal_and_speaker(signal=USO, speaker=speaker, equalize=False)
         freefield.play(kind=1, proc='RX81')
+        freefield.write(tag='data0', value=0, processors='RX81') # clear buffer
 
         # wait for response and read it
         time_before = time.time()

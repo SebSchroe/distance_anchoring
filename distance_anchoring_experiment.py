@@ -1,11 +1,11 @@
 # import necessary modules
 import freefield
-import distance_anchoring_copy
+import distance_anchoring
 
 # set global variables
-sub_id = 0
+sub_id = 6
 cond_id = 1
-block_id = 3
+block_id = 1
 kind = 'check'
 
 """
@@ -23,8 +23,8 @@ task_id:    1 -> nearest_speaker = 0, farthest_speaker = 10
             3 -> nearest_speaker = 4, farthest_speaker = 9
 """
 # initialize setup
-distance_anchoring_copy.initialize_setup()
+distance_anchoring.initialize_setup()
 
 # start experiment block by block
-distance_anchoring_copy.start_block(sub_id=sub_id, cond_id=cond_id, block_id=block_id, kind=kind)
+distance_anchoring.start_block(sub_id=sub_id, cond_id=cond_id, block_id=block_id, kind=kind)
 freefield.flush_buffers(processor='RX81')
