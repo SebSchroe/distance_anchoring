@@ -7,7 +7,7 @@ cond_id = 1
 split = False
 
 # predict sample size
-# analysis.predict_sample_size(effect_size=0.161)
+# analysis.predict_sample_size(effect_size=1.071)
 
 # diagnostic plots
 # analysis.create_diagnostic_plots(sub_id=sub_id, cond_id=cond_id, block_id=4)
@@ -17,5 +17,3 @@ analysis.plot_presented_vs_percieved_distance(sub_id=sub_id, cond_id=cond_id, sp
 
 # plot differences
 # df = analysis.plot_differences(sub_id=sub_id, cond_id=cond_id, block_id=1) # weiß ich nicht...
-
-# merged_df = analysis.get_merged_df(cond_id = cond_id, block_id = 1)

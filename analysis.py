@@ -102,20 +102,20 @@ def plot_presented_vs_percieved_distance(sub_id, cond_id, split=False):
             axes[index].plot([0, 13], [0, 13], color='grey', linewidth=1.5, linestyle='--', label='Optimum')
             
             # plot subset 1
-            axes[index].scatter(x_1, y_1, color='blue', alpha=0.1, edgecolors='None', label='Data points')
+            axes[index].scatter(x_1, y_1, color='blue', alpha=0.05, edgecolors='None', label='Data points')
             axes[index].plot(x_1, y_pred_1, color='blue', linewidth=1.5, label='Linear regression')
             axes[index].text(0.03, 0.97, regression_coefficients_1, transform=axes[index].transAxes,
                              verticalalignment='top', horizontalalignment='left', bbox=dict(boxstyle='round,pad=0.5', facecolor='white', alpha=0.5))
             
             # plot subset 2
-            axes[index].scatter(x_2, y_2, color='red', alpha=0.1, edgecolors='None', label='Data points')
+            axes[index].scatter(x_2, y_2, color='red', alpha=0.05, edgecolors='None', label='Data points')
             axes[index].plot(x_2, y_pred_2, color='red', linewidth=1.5, label='Linear regression')
             axes[index].text(0.97, 0.03, regression_coefficients_2, transform=axes[index].transAxes,
                              verticalalignment='bottom', horizontalalignment='right', bbox=dict(boxstyle='round,pad=0.5', facecolor='white', alpha=0.5))
             
             # layout
-            axes[index].set_xlabel(f'{x_values}')
-            axes[index].set_ylabel(f'{y_values}')
+            axes[index].set_xlabel('presented distance [m]')
+            axes[index].set_ylabel('percieved distance [m]')
             axes[index].set_title(f'sub: {sub_id}, cond: {cond_id}, block: {block_id}')
             axes[index].set_xlim(0, 13)
             axes[index].set_ylim(0, 13)
@@ -128,15 +128,15 @@ def plot_presented_vs_percieved_distance(sub_id, cond_id, split=False):
             x, y, y_pred, regression_coefficients = get_linear_regression_values(df, f'{x_values}', f'{y_values}')
             
             # plotting
-            axes[index].scatter(x, y, color='blue', alpha=0.1, edgecolors='None', label='Data points')
+            axes[index].scatter(x, y, color='blue', alpha=0.05, edgecolors='None', label='Data points')
             axes[index].plot(x, y_pred, color='blue', linewidth=1.5, label='Linear regression')
             axes[index].plot([0, 13], [0, 13], color='grey', linewidth=1.5, linestyle='--', label='Optimum')
             axes[index].text(0.03, 0.97, regression_coefficients, transform=axes[index].transAxes,
                              verticalalignment='top', bbox=dict(boxstyle='round,pad=0.5', facecolor='white', alpha=0.5))
             
             # layout
-            axes[index].set_xlabel(f'{x_values}')
-            axes[index].set_ylabel(f'{y_values}')
+            axes[index].set_xlabel('presented distance [m]')
+            axes[index].set_ylabel('percieved distance [m]')
             axes[index].set_title(f'sub: {sub_id}, cond: {cond_id}, block: {block_id}')
             axes[index].set_xlim(0, 13)
             axes[index].set_ylim(0, 13)
