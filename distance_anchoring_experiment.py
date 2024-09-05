@@ -3,7 +3,7 @@ import freefield
 import distance_anchoring
 
 # set global variables
-sub_id = 6
+sub_id = 0
 cond_id = 1
 block_id = 1
 kind = 'check'
