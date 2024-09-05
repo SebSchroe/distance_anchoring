@@ -1,9 +1,11 @@
 import pathlib
 import os
 import LinearRegDiagnostic
+import seaborn as sns
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import statsmodels.api as sm
 import statsmodels.formula.api as smf
 import statsmodels.stats.power as smp
 from sklearn.linear_model import LinearRegression
@@ -21,6 +23,8 @@ speaker_dict = {0: 2.00,
                 8: 10.00,
                 9: 11.00,
                 10: 12.00}
+cond_1_sub_ids = [1, 3, 4]
+cond_2_sub_ids = [1, 2]
 
 # analysation of statistical power (predict sample size)
 def predict_sample_size(effect_size, alpha=0.05, power=0.8, alternative='two-sided'):
@@ -67,6 +71,7 @@ def plot_presented_vs_percieved_distance(sub_id, cond_id, split=False):
     sub_id: can be individual sub_id or 'all' for all data of certain condition
     split: splits data of first block (condition 1) or last block (condition 2) in speaker subsets 1-6 and 4-9
     '''
+    
     # set variables
     x_values = 'speaker_distance'
     y_values = 'response'
@@ -144,17 +149,78 @@ def plot_presented_vs_percieved_distance(sub_id, cond_id, split=False):
         
         index += 1
     
+    # finalise
     plt.tight_layout()
     plt.show()
 
 # plot average slopes and standard deviation
-def plot_average_slopes(sub_id, cond_id):
-    # load data individually per sub
-    place_holder = 1
-    # get slope of each sub
+def plot_slopes_ANOVA():
     
-    # 
-
+    # load data
+    df_1 = get_concat_df(cond_id=1, block_id=4)
+    df_2 = get_concat_df(cond_id=2, block_id=4)
+    
+    # transform speaker_id to corresponding speaker distance
+    df_1['speaker_distance'] = df_1['speaker_id'].apply(lambda x: get_speaker_distance(x, speaker_dict))
+    df_2['speaker_distance'] = df_2['speaker_id'].apply(lambda x: get_speaker_distance(x, speaker_dict))
+    
+    # get regression coefficients
+    x_1 = df_1['speaker_distance'].values.reshape(-1, 1)
+    y_1 = df_1['response']
+    x_2 = df_2['speaker_distance'].values.reshape(-1, 1)
+    y_2 = df_2['response']
+    
+    # get model of each condition
+    model_1 = LinearRegression().fit(x_1, y_1)
+    model_2 = LinearRegression().fit(x_2, y_2)
+    
+    # get slope of each condition
+    slope_1 = model_1.coef_[0]
+    slope_2 = model_2.coef_[0]
+    
+    # simulate datapool for condition 3
+    mean_slope_3 = 0.77
+    std_slope_3 = 1.68
+    n_3 = 2860
+    slope_3_samples = np.random.normal(mean_slope_3, std_slope_3, n_3)
+    
+    # combine all slopes in one dataframe
+    data = pd.DataFrame({'Slope': np.concatenate([[slope_1]*len(x_1), [slope_2]*len(x_2), slope_3_samples]),
+                         'Condition': ['cond_1']*len(x_1) + ['cond_2']*len(x_2) + ['cond_3']*n_3})
+    
+    # plotting
+    model =sm.formula.ols('Slope ~ C(Condition)', data=data).fit()
+    anova_table = sm.stats.anova_lm(model, typ=2)
+    
+    print(anova_table)
+    
+    
+def plot_signed_error_distribution_at_x(cond_id, block_id, x=2):
+    
+    # load data
+    df = get_concat_df(cond_id, block_id)
+    
+    # transform speaker_id to corresponding speaker distance
+    df['speaker_distance'] = df['speaker_id'].apply(lambda x: get_speaker_distance(x, speaker_dict))
+    df['signed_error'] = df['response'] - df['speaker_distance']
+    
+    # filter data for specific x value
+    df_filtered = df[df['speaker_distance'] == x]
+    
+    # plotting
+    plt.figure(figsize=(10, 6))
+    sns.histplot(df_filtered['signed_error'], kde=True, bins=20, color='blue')
+    
+    # layout
+    plt.title(f'signed error distribution at presented distance = {x}, block {block_id}')
+    plt.xlabel('Signed error')
+    plt.ylabel('Count')
+    plt.xlim([-7, 7])
+    plt.ylim([0, 6])
+    
+    # finalise
+    plt.tight_layout()
+    plt.show()
 
 def plot_differences(sub_id, cond_id, block_id):
     
@@ -200,9 +266,9 @@ def get_concat_df(cond_id, block_id):
     
     # get sub_ids depending on cond_id
     if cond_id == 1:
-        sub_ids = [1, 3, 4]
+        sub_ids = cond_1_sub_ids
     else:
-        sub_ids = [1, 2]
+        sub_ids = cond_2_sub_ids
     
     # concatenate all dataframes into one merged df 
     for sub_id in sub_ids:
@@ -236,9 +302,9 @@ def get_linear_regression_values(df, x_values, y_values):
     
     # calculate linear regression coefficients
     slope = model.coef_[0]
-    intercept = model.intercept_
+    # intercept = model.intercept_
     r_squared = r2_score(y, y_pred)
-    regression_coefficients = f'Slope: {slope:.2f}\nIntercept: {intercept:.2f}\nR²: {r_squared:.2f}'
+    regression_coefficients = f'Slope: {slope:.2f}\nR²: {r_squared:.2f}'
     return x, y, y_pred, regression_coefficients
 
 def get_speaker_distance(key, speaker_dict):
