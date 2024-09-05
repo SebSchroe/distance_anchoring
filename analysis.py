@@ -85,7 +85,7 @@ def plot_presented_vs_percieved_distance(sub_id, cond_id, split=False):
         
         # load data
         if sub_id == 'all':
-            df = get_concat_df(cond_id, block_id)
+            df, sub_ids = get_concat_df(cond_id, block_id)
         else:
             df = get_df(sub_id, cond_id, block_id)
         
@@ -152,46 +152,47 @@ def plot_presented_vs_percieved_distance(sub_id, cond_id, split=False):
     # finalise
     plt.tight_layout()
     plt.show()
+    print('Total n:', len(sub_ids))
+    print('Total trials:', len(df))
+    return df
 
 # plot average slopes and standard deviation
-def plot_slopes_ANOVA():
+def seperate_slope_model():
     
     # load data
-    df_1 = get_concat_df(cond_id=1, block_id=4)
-    df_2 = get_concat_df(cond_id=2, block_id=4)
+    df_1, sub_ids = get_concat_df(cond_id=1, block_id=4)
+    df_2, sub_ids = get_concat_df(cond_id=2, block_id=4)
     
     # transform speaker_id to corresponding speaker distance
     df_1['speaker_distance'] = df_1['speaker_id'].apply(lambda x: get_speaker_distance(x, speaker_dict))
     df_2['speaker_distance'] = df_2['speaker_id'].apply(lambda x: get_speaker_distance(x, speaker_dict))
     
     # get regression coefficients
-    x_1 = df_1['speaker_distance'].values.reshape(-1, 1)
+    x_1 = df_1['speaker_distance'].values.flatten()
     y_1 = df_1['response']
-    x_2 = df_2['speaker_distance'].values.reshape(-1, 1)
+    x_2 = df_2['speaker_distance'].values.flatten()
     y_2 = df_2['response']
     
-    # get model of each condition
-    model_1 = LinearRegression().fit(x_1, y_1)
-    model_2 = LinearRegression().fit(x_2, y_2)
-    
-    # get slope of each condition
-    slope_1 = model_1.coef_[0]
-    slope_2 = model_2.coef_[0]
-    
     # simulate datapool for condition 3
-    mean_slope_3 = 0.77
-    std_slope_3 = 1.68
-    n_3 = 2860
-    slope_3_samples = np.random.normal(mean_slope_3, std_slope_3, n_3)
+    slope = 0.77
+    intercept = 1.6
+    n = 2860
+    sd = 1.68
     
-    # combine all slopes in one dataframe
-    data = pd.DataFrame({'Slope': np.concatenate([[slope_1]*len(x_1), [slope_2]*len(x_2), slope_3_samples]),
-                         'Condition': ['cond_1']*len(x_1) + ['cond_2']*len(x_2) + ['cond_3']*n_3})
+    x_3 = np.linspace(2, 12, n).flatten()
+    y_3 = slope * x_3 + intercept + np.random.normal(0, sd, n)
+    y_3 = y_3.flatten()
+    
+    # combine all data in one dataframe
+    data = pd.DataFrame({'x': np.concatenate([x_1, x_2, x_3]),
+                         'y': np.concatenate([y_1, y_2, y_3]),
+                         'Group': ['Condition 1']*len(x_1) + ['Condition 2']*len(x_2) + ['Control']*len(x_3)
+                         })
     
     # plotting
-    model =sm.formula.ols('Slope ~ C(Condition)', data=data).fit()
+    model = smf.ols('y ~ x * Group', data=data).fit()
+    print(model.summary())
     anova_table = sm.stats.anova_lm(model, typ=2)
-    
     print(anova_table)
     
     
@@ -275,7 +276,7 @@ def get_concat_df(cond_id, block_id):
         file_path = DIR / 'results' / f'results_sub-{sub_id}_cond-{cond_id}_block-{block_id}_task-{task_id}.csv'
         new_df = pd.read_csv(file_path)
         concat_df = pd.concat([concat_df, new_df], axis=0, ignore_index=True)
-    return concat_df
+    return concat_df, sub_ids
 
 def calc_diff_presented_percieved(df):
     df['diff_presented_percieved'] = df['speaker_distance'] - df['response']
