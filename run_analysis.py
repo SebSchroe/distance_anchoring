@@ -29,4 +29,4 @@ split = False
 # means_df = analysis.plot_means(sub_id=sub_id, cond_id=cond_id, block_ids=block_ids)
 
 # plot data
-analysis.plot_data(cond_id=cond_id, block_ids=block_ids)
+analysis.plot_data(block_ids=block_ids, means=True)

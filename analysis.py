@@ -65,33 +65,37 @@ def create_diagnostic_plots(sub_id, cond_id, block_id):
     vif, fig, ax = cls()
     print(vif)
 
-def plot_data(cond_id, block_ids):
+def plot_data(block_ids, means=False):
     
     # load data and concatenate all data
+    df = get_concat_df(block_ids=block_ids)
     
+    # transform speaker_id to corresponding speaker distance
+    df['speaker_distance'] = df['speaker_id'].apply(lambda x: get_speaker_distance(x, speaker_dict))
     
-    # prepare multiplot
-    n_plots = len(block_ids)
-    fig, axes = plt.subplots(1, n_plots, figsize=(19, 4), squeeze=False)
-    index = 0
+    # get means per participant
+    means_df = df.groupby(['sub_id', 'speaker_distance', 'block_id', 'cond_id'], as_index=False).agg(
+        mean_response=('response', 'mean'))
     
-    for block_id in block_ids:
-    
-        # load data
-        df, sub_ids = get_concat_df(cond_id, block_id)
+    # data plotting
+    if means:
+        g = sns.FacetGrid(means_df, col='block_id', row='cond_id', hue='sub_id', height=4, aspect=1.5, palette='tab10')
+        g.map(sns.lineplot, 'speaker_distance', 'mean_response').add_legend()
+    else:
+        g = sns.FacetGrid(df, col='block_id', row='cond_id', hue='sub_id', height=4, aspect=1.5, palette='tab10')
+        g.map(sns.scatterplot, 'speaker_distance', 'response').add_legend()
+    # adjust layout
+    for ax in g.axes.flat:
+        ax.set_xlim(0, 13)
+        ax.set_ylim(0, 13)
+        ax.set_xticks(np.arange(0, 13, 1))
+        ax.set_yticks(np.arange(0, 13, 1))
+        ax.set_aspect('equal', adjustable='box')
         
-        # transform speaker_id to corresponding speaker distance
-        df['speaker_distance'] = df['speaker_id'].apply(lambda x: get_speaker_distance(x, speaker_dict))
-        
-        # get means per participant
-        df_means = df.groupby(['sub_id', 'speaker_distance'], as_index=False).agg(
-            mean_response=('response', 'mean'))
-        
-        sns.lineplot(data=df_means, x='speaker_distance', y='mean_response', hue='sub_id', ax=axes[0, index], palette='tab10')
-        
-        index += 1
+        # add 1:1 line through the origin
+        ax.plot([2, 12], [2, 12], ls='--', color='grey', label='1:1 Line')
     
-    plt.tight_layout()    
+    plt.tight_layout()
     plt.show()
 
 # plot presented vs. percieved distances of test blocks 1, 4 and 6
@@ -339,29 +343,39 @@ def get_df(sub_id, cond_id, block_id):
     df = pd.read_csv(file_path)
     return df
 
-def get_concat_df(cond_id, block_ids):
+def get_concat_df(block_ids):
     
     # create empty dataframe
     concat_df = pd.DataFrame()
     
-    # get sub_ids depending on cond_id
-    if cond_id == 1:
-        sub_ids = cond_1_sub_ids
-    else:
-        sub_ids = cond_2_sub_ids
-        
-    # loop through all block_ids
-    for block_id in block_ids:
-        # get task_id of current block
-        task_id = get_task_id(cond_id, block_id)
-        
-        # concatenate data for all subjects for the current block_id 
-        for sub_id in sub_ids:
-            file_path = DIR / 'results' / f'results_sub-{sub_id}_cond-{cond_id}_block-{block_id}_task-{task_id}.csv'
-            new_df = pd.read_csv(file_path)
-            concat_df = pd.concat([concat_df, new_df], axis=0, ignore_index=True)
+    # loop through all conditions
+    for cond_id in [1]:
+                
+        # loop through all block_ids
+        for block_id in block_ids:
+            # get task_id of current block
+            task_id = get_task_id(cond_id, block_id)
+            
+            # concatenate data for all subjects for the current block_id 
+            for sub_id in cond_1_sub_ids:
+                file_path = DIR / 'results' / f'results_sub-{sub_id}_cond-{cond_id}_block-{block_id}_task-{task_id}.csv'
+                new_df = pd.read_csv(file_path)
+                concat_df = pd.concat([concat_df, new_df], axis=0, ignore_index=True)
     
-    return concat_df, sub_ids
+    for cond_id in [2]:
+                
+        # loop through all block_ids
+        for block_id in block_ids:
+            # get task_id of current block
+            task_id = get_task_id(cond_id, block_id)
+            
+            # concatenate data for all subjects for the current block_id 
+            for sub_id in cond_2_sub_ids:
+                file_path = DIR / 'results' / f'results_sub-{sub_id}_cond-{cond_id}_block-{block_id}_task-{task_id}.csv'
+                new_df = pd.read_csv(file_path)
+                concat_df = pd.concat([concat_df, new_df], axis=0, ignore_index=True)
+                
+    return concat_df
 
 def calc_diff_presented_percieved(df):
     df['diff_presented_percieved'] = df['speaker_distance'] - df['response']
