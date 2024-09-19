@@ -27,8 +27,7 @@ speaker_dict = {0: 2.00,
                 10: 12.00}
 
 # TODO: add function to test speaker
-# TODO: adjust code to new logging-thing
-# TODO: add variable for condition
+# TODO: make code more stable with try/except
 # TODO: remove redundant code in training() and test()
 
 USO_file_folder = DIR / 'data' / 'cutted_USOs' / 'uso_300ms_new'

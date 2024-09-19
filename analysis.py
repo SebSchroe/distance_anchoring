@@ -63,15 +63,17 @@ def create_diagnostic_plots(sub_id, cond_id, block_id):
     vif, fig, ax = cls()
     print(vif)
 
-def plot_data(df, block_ids, kind='scatter'):
+def plot_data(df, kind='scatterplot'):
     
     # data plotting
-    if kind == 'scatter':
-        g = sns.FacetGrid(df, col='block_id', row='cond_id', hue='sub_id', height=4, aspect=1.5, palette='tab10')
+    g = sns.FacetGrid(df, col='block_id', row='cond_id', hue='sub_id', height=4, aspect=1.5, palette='tab10')
+    
+    if kind == 'scatterplot':
         g.map(sns.scatterplot, 'speaker_distance', 'response').add_legend()
-    if kind == 'line':
-        g = sns.FacetGrid(df, col='block_id', row='cond_id', hue='sub_id', height=4, aspect=1.5, palette='tab10')
+    if kind == 'lineplot':
         g.map(sns.lineplot, 'speaker_distance', 'mean_response').add_legend()
+    if kind == 'regplot':
+        g.map(sns.regplot, 'speaker_distance', 'mean_response', order=2).add_legend()
     
     # adjust layout
     for ax in g.axes.flat:
@@ -250,28 +252,6 @@ def plot_signed_error_distribution_at_x(cond_id, block_id, x=2):
     plt.tight_layout()
     plt.show()
 
-def plot_differences(sub_id, cond_id, block_id):
-    
-    # load data
-    df = get_df(sub_id, cond_id, block_id)
-    
-    # transform data
-    df['speaker_distance'] = df['speaker_id'].apply(lambda x: get_speaker_distance(x, speaker_dict))
-    calc_diff_presented_percieved(df)
-    df['delta_presented'] = get_delta_presented(df)
-    df['delta_presented'] = df['delta_presented'].shift(1)
-    df = df.dropna(subset=['delta_presented'])
-    
-       
-    x = df['delta_presented']
-    y = df['diff_presented_percieved']
-    
-    x, y, y_pred, regression_coefficients = get_linear_regression_values(df, 'delta_presented', 'diff_presented_percieved')
-    
-    plt.scatter(x, y)
-    plt.plot(x, y_pred)
-    plt.show()
-
 # help functions
 def get_response_subset_df(df, nearest_speaker, farthest_speaker):
     df['response_subset'] = np.where((df['speaker_id'] >= nearest_speaker) & (df['speaker_id'] <= farthest_speaker), df['response'], np.nan)
@@ -279,12 +259,6 @@ def get_response_subset_df(df, nearest_speaker, farthest_speaker):
     response_subset.dropna(subset='response_subset', inplace=True)
     response_subset.rename(columns={'response_subset': 'response'}, inplace=True)
     return response_subset
-
-def get_df(sub_id, cond_id, block_id):
-    task_id = get_task_id(cond_id=cond_id, block_id=block_id)
-    file_path = DIR / 'results' / f'results_sub-{sub_id}_cond-{cond_id}_block-{block_id}_task-{task_id}.csv'
-    df = pd.read_csv(file_path)
-    return df
 
 def get_concat_df(cond_ids, sub_ids_dict, block_ids):
     

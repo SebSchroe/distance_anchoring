@@ -25,6 +25,6 @@ task_id:    1 -> nearest_speaker = 0, farthest_speaker = 10
 # initialize setup
 distance_anchoring.initialize_setup()
 
-# start experiment block by block
+# start experiment block by block and flush all buffers after each block
 distance_anchoring.start_block(sub_id=sub_id, cond_id=cond_id, block_id=block_id, kind=kind)
 freefield.flush_buffers(processor='RX81')
