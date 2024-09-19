@@ -23,8 +23,6 @@ speaker_dict = {0: 2.00,
                 8: 10.00,
                 9: 11.00,
                 10: 12.00}
-cond_1_sub_ids = [1, 3, 4, 7]
-cond_2_sub_ids = [1, 2, 6]
 
 # analysation of statistical power (predict sample size)
 def predict_sample_size(effect_size, alpha=0.05, power=0.8, alternative='two-sided'):
@@ -65,25 +63,16 @@ def create_diagnostic_plots(sub_id, cond_id, block_id):
     vif, fig, ax = cls()
     print(vif)
 
-def plot_data(block_ids, means=False):
-    
-    # load data and concatenate all data
-    df = get_concat_df(block_ids=block_ids)
-    
-    # transform speaker_id to corresponding speaker distance
-    df['speaker_distance'] = df['speaker_id'].apply(lambda x: get_speaker_distance(x, speaker_dict))
-    
-    # get means per participant
-    means_df = df.groupby(['sub_id', 'speaker_distance', 'block_id', 'cond_id'], as_index=False).agg(
-        mean_response=('response', 'mean'))
+def plot_data(df, block_ids, kind='scatter'):
     
     # data plotting
-    if means:
-        g = sns.FacetGrid(means_df, col='block_id', row='cond_id', hue='sub_id', height=4, aspect=1.5, palette='tab10')
-        g.map(sns.lineplot, 'speaker_distance', 'mean_response').add_legend()
-    else:
+    if kind == 'scatter':
         g = sns.FacetGrid(df, col='block_id', row='cond_id', hue='sub_id', height=4, aspect=1.5, palette='tab10')
         g.map(sns.scatterplot, 'speaker_distance', 'response').add_legend()
+    if kind == 'line':
+        g = sns.FacetGrid(df, col='block_id', row='cond_id', hue='sub_id', height=4, aspect=1.5, palette='tab10')
+        g.map(sns.lineplot, 'speaker_distance', 'mean_response').add_legend()
+    
     # adjust layout
     for ax in g.axes.flat:
         ax.set_xlim(0, 13)
@@ -194,52 +183,6 @@ def plot_presented_vs_percieved_distance(sub_id, cond_id, block_ids, split=False
     print('Total trials:', len(df))
     return df
 
-def plot_means(sub_id, cond_id, block_ids):
-    
-    # prepare multiplot
-    n_plots = len(block_ids)
-    fig, axes = plt.subplots(1, n_plots, figsize=(19, 4))
-    index = 0
-    
-    for block_id in block_ids:
-        # get data
-        if sub_id == 'all':
-            df, sub_ids = get_concat_df(cond_id, block_id)
-        else:
-            df = get_df(sub_id, cond_id, block_id)
-        
-        # transform speaker_id to corresponding speaker distance
-        df['speaker_distance'] = df['speaker_id'].apply(lambda x: get_speaker_distance(x, speaker_dict))
-        
-        # get new df with means at each speaker position
-        means_df = get_means_df(df)
-        
-        # extraxt values from df
-        x = means_df['speaker_distance']
-        means = means_df['mean_response']
-        std = means_df['std_response']
-        
-        # plotting
-        axes[index].errorbar(x, means, yerr=std, fmt='o', capsize=5, color='blue', ecolor='blue', label='mean with std')
-        axes[index].plot([2, 12], [2, 12], color='grey', linewidth=1.5, linestyle='--', label='Optimum')
-        
-        #layout
-        axes[index].set_xlabel('Source distance [m]')
-        axes[index].set_ylabel('Averaged perceived distance [m]')
-        axes[index].set_title(f'sub: {sub_id}, cond: {cond_id}, block: {block_id}')
-        axes[index].set_xlim(0, 13)
-        axes[index].set_ylim(0, 13)
-        axes[index].set_xticks(range(0, 13, 2))
-        axes[index].set_yticks(range(0, 13, 2))
-        axes[index].set_aspect('equal', adjustable='box')
-        
-        index += 1
-    
-    plt.tight_layout()
-    plt.show()
-    
-    return means_df
-
 # plot average slopes and standard deviation
 def seperate_slope_model():
     
@@ -343,38 +286,31 @@ def get_df(sub_id, cond_id, block_id):
     df = pd.read_csv(file_path)
     return df
 
-def get_concat_df(block_ids):
+def get_concat_df(cond_ids, sub_ids_dict, block_ids):
     
     # create empty dataframe
     concat_df = pd.DataFrame()
     
-    # loop through all conditions
-    for cond_id in [1]:
+    # loop through all conditions and get sub_ids
+    for cond_id in cond_ids:
+        sub_ids = sub_ids_dict.get(cond_id, [])
                 
-        # loop through all block_ids
+        # loop through all block_ids and get task_ids
         for block_id in block_ids:
+            
             # get task_id of current block
             task_id = get_task_id(cond_id, block_id)
             
-            # concatenate data for all subjects for the current block_id 
-            for sub_id in cond_1_sub_ids:
+            # loop through all sub_ids and concatenate data file
+            for sub_id in sub_ids:
                 file_path = DIR / 'results' / f'results_sub-{sub_id}_cond-{cond_id}_block-{block_id}_task-{task_id}.csv'
-                new_df = pd.read_csv(file_path)
-                concat_df = pd.concat([concat_df, new_df], axis=0, ignore_index=True)
-    
-    for cond_id in [2]:
                 
-        # loop through all block_ids
-        for block_id in block_ids:
-            # get task_id of current block
-            task_id = get_task_id(cond_id, block_id)
-            
-            # concatenate data for all subjects for the current block_id 
-            for sub_id in cond_2_sub_ids:
-                file_path = DIR / 'results' / f'results_sub-{sub_id}_cond-{cond_id}_block-{block_id}_task-{task_id}.csv'
-                new_df = pd.read_csv(file_path)
-                concat_df = pd.concat([concat_df, new_df], axis=0, ignore_index=True)
-                
+                try:
+                    new_df = pd.read_csv(file_path)
+                    concat_df = pd.concat([concat_df, new_df], axis=0, ignore_index=True)
+                except FileNotFoundError:
+                    print(f'No data found for sub_id {sub_id}, cond_id {cond_id} and block_id {block_id}.')
+                    
     return concat_df
 
 def calc_diff_presented_percieved(df):
@@ -389,18 +325,6 @@ def get_delta_presented(df):
         delta_presented.append(delta)
     delta_presented.append(np.nan)
     return delta_presented
-
-def get_means_df(df):
-    
-    # group by speaker distances and get mean of responses
-    grouped_df = df.groupby('speaker_distance').agg(
-        mean_response=('response', 'mean'),
-        std_response=('response', 'std')
-        ).reset_index()
-    
-    # rename columns
-    grouped_df.columns = ['speaker_distance', 'mean_response', 'std_response']
-    return grouped_df
 
 def get_linear_regression_values(df, x_values, y_values):
     
