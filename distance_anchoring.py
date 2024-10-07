@@ -47,24 +47,22 @@ def start_block(sub_id, cond_id, block_id, kind='experiment'):
     def execute_procedure(procedure, task_id, n_reps, isi):
         procedure(sub_id=sub_id, cond_id=cond_id, block_id=block_id, task_id=task_id, n_reps=n_reps, isi=isi)
 
-    if kind == 'experiment':
+    if kind == 'experiment': # TODO: think about n_reps again (should be the same for every task) and isi
         if cond_id == 1:
-            if block_id in [1, 2]:
-                execute_procedure(test, 1, 8, 0.3)
-            elif block_id in [3, 5]:
-                execute_procedure(training, 1, 90, 2)
-            elif block_id == 4:
+            if block_id in [1, 2, 4]:
                 execute_procedure(test, 2, 15, 0.3)
+            elif block_id in [3, 5]:
+                execute_procedure(training, 2, 90, 2)
             elif block_id == 6:
-                execute_procedure(test, 3, 15, 0.3)
+                execute_procedure(test, 1, 8, 0.3)
             else:
                 print('block_id can only be 1 to 6')
 
         elif cond_id == 2:
             if block_id in [1, 2, 4]:
-                execute_procedure(test, 2, 15, 0.3)
+                execute_procedure(test, 3, 15, 0.3)
             elif block_id in [3, 5]:
-                execute_procedure(training, 2, 90, 2)
+                execute_procedure(training, 3, 90, 2)
             elif block_id == 6:
                 execute_procedure(test, 1, 8, 0.3)
             else:
@@ -75,17 +73,17 @@ def start_block(sub_id, cond_id, block_id, kind='experiment'):
     elif kind == 'check':
         if cond_id == 1:
             if block_id == 1:
-                execute_procedure(test, 1, 1, 0.3)
+                execute_procedure(test, 2, 1, 0.3)
             elif block_id == 3:
-                execute_procedure(training, 1, 10, 2)
+                execute_procedure(training, 2, 10, 2)
             else:
                 print('Please use block_id 1 for test checking and block_id 3 for training checking')
 
         elif cond_id == 2:
             if block_id == 1:
-                execute_procedure(test, 2, 2, 0.3)
+                execute_procedure(test, 3, 2, 0.3)
             elif block_id == 3:
-                execute_procedure(training, 2, 10, 2)
+                execute_procedure(training, 3, 10, 2)
             else:
                 print('Please use block_id 1 for test checking and block_id 3 for training checking')
     else:
@@ -98,9 +96,11 @@ def training(sub_id, cond_id, block_id, task_id, n_reps, isi):
     if task_id == 1:
         speaker_dic = speaker_dict # use all speakers
     elif task_id == 2:
-        speaker_dic = {k: v for k, v in speaker_dict.items() if 1 <= k <= 6} # only use speakers with index 1 to 6
+        speaker_dic = {k: v for k, v in speaker_dict.items() if 1 <= k <= 5} # only use speakers with index 1 to 5
+    elif task_id == 3:
+        speaker_dic = {k: v for k, v in speaker_dict.items() if 5 <= k <= 9} # only use speakers with index 5 to 9
     else:
-        return print('You can only set task_id to 1 or 2')
+        return print('You can only set task_id to 1, 2 or 3')
 
     # initialize sequence with corresponding conditions
     seq = slab.Trialsequence(conditions=1, n_reps=n_reps)
@@ -135,7 +135,7 @@ def training(sub_id, cond_id, block_id, task_id, n_reps, isi):
     print("Done with training")
 
 # main code for executing test block
-def test(sub_id, cond_id, block_id, task_id, n_reps, isi): # TODO: think about isi
+def test(sub_id, cond_id, block_id, task_id, n_reps, isi):
 
     # set condition for this block
     if task_id == 1: # n_reps = 8 for 88 trials
@@ -143,9 +143,9 @@ def test(sub_id, cond_id, block_id, task_id, n_reps, isi): # TODO: think about i
         farthest_speaker = 10
     elif task_id == 2: # n_reps = 15 for 90 trials
         nearest_speaker = 1
-        farthest_speaker = 6
+        farthest_speaker = 5
     elif task_id == 3:# n_reps = 8 for 88 trials
-        nearest_speaker = 4
+        nearest_speaker = 5
         farthest_speaker = 9
     else:
         return print('You can only set task_id to 1, 2 or 3')
