@@ -88,45 +88,6 @@ def plot_data(df, kind='scatterplot'):
     
     plt.tight_layout()
     plt.show()
-
-# plot average slopes and standard deviation
-def seperate_slope_model():
-    
-    # load data
-    df_1, sub_ids = get_concat_df(cond_id=1, block_id=4)
-    df_2, sub_ids = get_concat_df(cond_id=2, block_id=4)
-    
-    # transform speaker_id to corresponding speaker distance
-    df_1['speaker_distance'] = df_1['speaker_id'].apply(lambda x: get_speaker_distance(x, speaker_dict))
-    df_2['speaker_distance'] = df_2['speaker_id'].apply(lambda x: get_speaker_distance(x, speaker_dict))
-    
-    # get regression coefficients
-    x_1 = df_1['speaker_distance'].values.flatten()
-    y_1 = df_1['response']
-    x_2 = df_2['speaker_distance'].values.flatten()
-    y_2 = df_2['response']
-    
-    # simulate datapool for condition 3
-    slope = 0.77
-    intercept = 1.6
-    n = 2860
-    sd = 1.68
-    
-    x_3 = np.linspace(2, 12, n).flatten()
-    y_3 = slope * x_3 + intercept + np.random.normal(0, sd, n)
-    y_3 = y_3.flatten()
-    
-    # combine all data in one dataframe
-    data = pd.DataFrame({'x': np.concatenate([x_1, x_2, x_3]),
-                         'y': np.concatenate([y_1, y_2, y_3]),
-                         'Group': ['Condition 1']*len(x_1) + ['Condition 2']*len(x_2) + ['Control']*len(x_3)
-                         })
-    
-    # plotting
-    model = smf.ols('y ~ x * Group', data=data).fit()
-    print(model.summary())
-    anova_table = sm.stats.anova_lm(model, typ=2)
-    print(anova_table)
     
     
 def plot_signed_error_distribution_at_x(cond_id, block_id, x=2):
