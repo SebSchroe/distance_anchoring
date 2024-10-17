@@ -63,28 +63,29 @@ def create_diagnostic_plots(sub_id, cond_id, block_id):
     vif, fig, ax = cls()
     print(vif)
 
-def plot_data(df, kind='scatterplot'):
+def plot_data(df, x, y, col, row, hue, kind='scatterplot', baseline=True):
     
     # data plotting
-    g = sns.FacetGrid(df, col='block_id', row='cond_id', hue='sub_id', height=4, aspect=1.5, palette='tab10')
+    g = sns.FacetGrid(df, col=col, row=row, hue=hue, height=4, aspect=1.5, palette='tab10')
     
     if kind == 'scatterplot':
-        g.map(sns.scatterplot, 'speaker_distance', 'response').add_legend()
-    if kind == 'lineplot':
-        g.map(sns.lineplot, 'speaker_distance', 'mean_response').add_legend()
-    if kind == 'regplot':
-        g.map(sns.regplot, 'speaker_distance', 'mean_response', order=2).add_legend()
+        g.map(sns.scatterplot, x, y).add_legend()
+    elif kind == 'lineplot':
+        g.map(sns.lineplot, x, y).add_legend()
+    elif kind == 'regplot':
+        g.map(sns.regplot, x, y, order=2).add_legend()
     
     # adjust layout
     for ax in g.axes.flat:
-        ax.set_xlim(0, 13)
-        ax.set_ylim(0, 13)
-        ax.set_xticks(np.arange(0, 13, 1))
-        ax.set_yticks(np.arange(0, 13, 1))
-        ax.set_aspect('equal', adjustable='box')
+        #ax.set_xlim(0, 13)
+        #ax.set_ylim(0, 13)
+        #ax.set_xticks(np.arange(0, 13, 1))
+        #ax.set_yticks(np.arange(0, 13, 1))
+        #ax.set_aspect('equal', adjustable='box')
         
-        # add 1:1 line through the origin
-        ax.plot([2, 12], [2, 12], ls='--', color='grey', label='1:1 Line')
+        if baseline:
+            # add 1:1 line through the origin
+            ax.plot([2, 12], [2, 12], ls='--', color='grey', label='1:1 Line')
     
     plt.tight_layout()
     plt.show()
@@ -164,6 +165,20 @@ def get_delta_presented(df):
         delta_presented.append(delta)
     delta_presented.append(np.nan)
     return delta_presented
+
+def calc_experiment_duration(n_reps, mean_response_time):
+    n_reps = n_reps
+    n_speaker = [5, 11]
+    isi = [0.3, 2]
+
+    n_trials_1 = n_reps * n_speaker[0]
+    n_trials_2 = n_reps * n_speaker[1]
+
+    time_per_trial_1 = mean_response_time + isi[0]
+    time_per_trial_2 = isi[1]
+
+    experiment_duration_m = (3 * (n_trials_1 * time_per_trial_1) + 2 * (n_trials_1 * time_per_trial_2) + (n_trials_2 * time_per_trial_1))/60
+    return experiment_duration_m
 
 def get_linear_regression_values(df, x_values, y_values):
     
