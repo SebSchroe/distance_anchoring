@@ -1,0 +1,2 @@
+sub_id,cond_id,block_id,task_id,event_id,stim_id,speaker_id,response,response_time,n_reps,isi
+10,1,1,1,1,1,1,1.0,1.0,1,1.0

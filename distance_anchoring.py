@@ -47,7 +47,7 @@ def start_block(sub_id, cond_id, block_id, kind='experiment'):
     def execute_procedure(procedure, task_id, n_reps, isi):
         procedure(sub_id=sub_id, cond_id=cond_id, block_id=block_id, task_id=task_id, n_reps=n_reps, isi=isi)
 
-    if kind == 'experiment': # TODO: think about n_reps again (should be the same for every task) and isi
+    if kind == 'experiment':
         if cond_id == 1:
             if block_id in [1, 2, 4]:
                 execute_procedure(test, 2, 15, 0.3)
@@ -138,13 +138,13 @@ def training(sub_id, cond_id, block_id, task_id, n_reps, isi):
 def test(sub_id, cond_id, block_id, task_id, n_reps, isi):
 
     # set condition for this block
-    if task_id == 1: # n_reps = 8 for 88 trials
+    if task_id == 1:
         nearest_speaker = 0
         farthest_speaker = 10
-    elif task_id == 2: # n_reps = 15 for 90 trials
+    elif task_id == 2:
         nearest_speaker = 1
         farthest_speaker = 5
-    elif task_id == 3:# n_reps = 8 for 88 trials
+    elif task_id == 3:
         nearest_speaker = 5
         farthest_speaker = 9
     else:
