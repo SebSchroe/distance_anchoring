@@ -196,7 +196,7 @@ def save_results(sub_id, cond_id, block_id, task_id, event_id, stim_id, speaker_
         df_curr_results = pd.DataFrame()
 
     # convert values in desired data types
-    sub_id = int(sub_id)
+    sub_id = str(sub_id)
     cond_id = int(cond_id)
     block_id = int(block_id)
     task_id = int(task_id)
