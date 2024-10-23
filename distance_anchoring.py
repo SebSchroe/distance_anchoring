@@ -9,6 +9,9 @@ import serial
 import numpy as np
 import pandas as pd
 
+# TODO: add function to test speaker
+# TODO: make code more stable with try/except
+
 # global variables
 DIR = pathlib.Path(os.curdir)
 normalization_method = "mgb_normalization"
@@ -26,10 +29,13 @@ speaker_dict = {0: 2.00,
                 9: 11.00,
                 10: 12.00}
 
-# TODO: add function to test speaker
-# TODO: make code more stable with try/except
-# TODO: remove redundant code in training() and test()
+# assign results folder
+results_folder = DIR / 'results'
 
+# define columns for results saving
+header = ['sub_id', 'cond_id', 'block_id', 'task_id', 'event_id', 'stim_id', 'speaker_id', 'response', 'response_time', 'n_reps', 'isi'] 
+
+# precompute USOs
 USO_file_folder = DIR / 'data' / 'cutted_USOs' / 'uso_300ms_new'
 USO_file_names = os.listdir(DIR / 'data' / 'cutted_USOs' / 'uso_300ms_new')
 precomputed_USOs = slab.Precomputed([slab.Sound(os.path.join(USO_file_folder, f)) for f in USO_file_names])
@@ -43,18 +49,18 @@ def initialize_setup():
     freefield.set_logger("DEBUG") #TODO: Lukas is using 'INFO' now.
 
 # main code to execute each block
-def start_block(sub_id, cond_id, block_id, kind='experiment'):
+def start_block(sub_id, cond_id, block_id):
     def execute_procedure(procedure, task_id, n_reps, isi):
         procedure(sub_id=sub_id, cond_id=cond_id, block_id=block_id, task_id=task_id, n_reps=n_reps, isi=isi)
 
-    if kind == 'experiment':
+    if sub_id == 'test_run':
         if cond_id == 1:
             if block_id in [1, 2, 4]:
-                execute_procedure(test, 2, 15, 0.3)
+                execute_procedure(test, 2, 1, 0.3)
             elif block_id in [3, 5]:
-                execute_procedure(training, 2, 90, 2)
+                execute_procedure(training, 2, 15, 2)
             elif block_id == 6:
-                execute_procedure(test, 1, 8, 0.3)
+                execute_procedure(test, 1, 1, 0.3)
             else:
                 print('block_id can only be 1 to 6')
 
@@ -62,64 +68,62 @@ def start_block(sub_id, cond_id, block_id, kind='experiment'):
             if block_id in [1, 2, 4]:
                 execute_procedure(test, 3, 15, 0.3)
             elif block_id in [3, 5]:
-                execute_procedure(training, 3, 90, 2)
+                execute_procedure(training, 3, 75, 2)
             elif block_id == 6:
-                execute_procedure(test, 1, 8, 0.3)
+                execute_procedure(test, 1, 15, 0.3)
             else:
                 print('block_id can only be 1 to 6')
         else:
             print('cond_id can only be 1 or 2')
 
-    elif kind == 'check':
+    else:
         if cond_id == 1:
-            if block_id == 1:
-                execute_procedure(test, 2, 1, 0.3)
-            elif block_id == 3:
-                execute_procedure(training, 2, 10, 2)
+            if block_id in [1, 2, 4]:
+                execute_procedure(test, 2, 15, 0.3)
+            elif block_id in [3, 5]:
+                execute_procedure(training, 2, 75, 2)
+            elif block_id == 6:
+                execute_procedure(test, 1, 15, 0.3)
             else:
-                print('Please use block_id 1 for test checking and block_id 3 for training checking')
+                print('block_id can only be 1 to 6')
 
         elif cond_id == 2:
-            if block_id == 1:
-                execute_procedure(test, 3, 2, 0.3)
-            elif block_id == 3:
-                execute_procedure(training, 3, 10, 2)
+            if block_id in [1, 2, 4]:
+                execute_procedure(test, 3, 15, 0.3)
+            elif block_id in [3, 5]:
+                execute_procedure(training, 3, 75, 2)
+            elif block_id == 6:
+                execute_procedure(test, 1, 15, 0.3)
             else:
-                print('Please use block_id 1 for test checking and block_id 3 for training checking')
-    else:
-        print('Please choose between experiment or check')
+                print('block_id can only be 1 to 6')
+        else:
+            print('cond_id can only be 1 or 2')
 
 # main code for executing training block
 def training(sub_id, cond_id, block_id, task_id, n_reps, isi):
 
-    # set condition for this block
-    if task_id == 1:
-        speaker_dic = speaker_dict # use all speakers
-    elif task_id == 2:
-        speaker_dic = {k: v for k, v in speaker_dict.items() if 1 <= k <= 5} # only use speakers with index 1 to 5
-    elif task_id == 3:
-        speaker_dic = {k: v for k, v in speaker_dict.items() if 5 <= k <= 9} # only use speakers with index 5 to 9
-    else:
-        return print('You can only set task_id to 1, 2 or 3')
+    # set speaker set depending on task_id
+    speaker_set = get_speaker_set(task_id)
+    
+    # filter speaker_dict depending on speaker set
+    speaker_dic = {key: speaker_dict[key] for key in speaker_set if key in speaker_dict}
+
+    # prepare results table
+    table = slab.ResultsTable(columns=header, subject=f'sub-{sub_id}', folder=results_folder, filename=f'cond-{cond_id}_block-{block_id}')
 
     # initialize sequence with corresponding conditions
     seq = slab.Trialsequence(conditions=1, n_reps=n_reps)
     for trial in seq:
 
         # get random USO sound
-        random_index = random.randint(0, len(precomputed_USOs) - 1)
-        USO = slab.Sound(precomputed_USOs[random_index])
-        stim_id = USO_file_names[random_index]
+        USO, stim_id = get_random_USO()
 
         # read slider value and convert it to speaker value
         slider_value = get_slider_value()
         closest_speaker = min(speaker_dic, key=lambda k: abs(speaker_dic[k] - slider_value)) # calculates speaker which is closest to distance of the slider value
 
-        # play USO from speaker corresponding to to slider value
-        USO = apply_mgb_equalization(signal=USO, speaker=freefield.pick_speakers(closest_speaker)[0])
-        freefield.set_signal_and_speaker(signal=USO, speaker=closest_speaker, equalize=False)
-        freefield.play(kind=1, proc='RX81')
-        freefield.write(tag='data0', value=0, processors='RX81') # clear buffer
+        # equalize USO und play from speaker
+        play_USO_from_speaker(USO, closest_speaker)
 
         # finish this trial
         event_id = seq.this_n + 1
@@ -128,63 +132,88 @@ def training(sub_id, cond_id, block_id, task_id, n_reps, isi):
         print(f'Closest speaker: {closest_speaker}')
         time.sleep(isi)
 
-        # save results
-        save_results(sub_id=sub_id, cond_id=cond_id, block_id=block_id, task_id=task_id,
-                     event_id=event_id, stim_id=stim_id, speaker_id=closest_speaker, response=slider_value,
-                     response_time=np.nan, n_reps=n_reps, isi=isi)
+        # save results trial by trial
+        row = table.Row(sub_id=sub_id, cond_id=cond_id, block_id=block_id, task_id=task_id, 
+                        event_id=event_id, stim_id=stim_id, speaker_id=closest_speaker, 
+                        response=slider_value, response_time=np.nan, n_reps=n_reps, isi=isi)
+        table.write(row)
+        
     print("Done with training")
 
 # main code for executing test block
 def test(sub_id, cond_id, block_id, task_id, n_reps, isi):
 
-    # set condition for this block
-    if task_id == 1:
-        nearest_speaker = 0
-        farthest_speaker = 10
-    elif task_id == 2:
-        nearest_speaker = 1
-        farthest_speaker = 5
-    elif task_id == 3:
-        nearest_speaker = 5
-        farthest_speaker = 9
-    else:
-        return print('You can only set task_id to 1, 2 or 3')
+    # set speaker set depending on task_id
+    speaker_set = get_speaker_set(task_id)
 
-    # initialize sequence with corresponding conditions
-    speakers = list(range(nearest_speaker, farthest_speaker + 1))
-    seq = slab.Trialsequence(conditions=speakers, n_reps=n_reps)
+    # prepare results table
+    table = slab.ResultsTable(columns=header, subject=f'sub-{sub_id}', folder=results_folder, filename=f'cond-{cond_id}_block-{block_id}')
+
+    # initialize sequence
+    seq = slab.Trialsequence(conditions=speaker_set, n_reps=n_reps)
     for speaker in seq:
 
         # get random USO sound
-        random_index = random.randint(0, len(precomputed_USOs) - 1)
-        USO = slab.Sound(precomputed_USOs[random_index])
-        stim_id = USO_file_names[random_index]
+        USO, stim_id = get_random_USO()
 
-        # prepare and playing USO
-        USO = apply_mgb_equalization(signal=USO, speaker=freefield.pick_speakers(speaker)[0])
-        freefield.set_signal_and_speaker(signal=USO, speaker=speaker, equalize=False)
-        freefield.play(kind=1, proc='RX81')
-        freefield.write(tag='data0', value=0, processors='RX81') # clear buffer
-
+        # equalize USO und play from speaker
+        play_USO_from_speaker(USO, speaker)
+        
         # wait for response and read it
         time_before = time.time()
         slider_value = get_slider_value()
         time_after = time.time()
+        response_time = time_after - time_before
 
         # finish this trial
-        response_time = time_after - time_before
         event_id = seq.this_n + 1
         print(f'Trial: {event_id}')
         print(f'speaker_id: {speaker}')
         print(f'slider_value: {slider_value:.2f}')
         time.sleep(isi)
 
-        # save data event by event
-        save_results(sub_id=sub_id, cond_id=cond_id, block_id=block_id, task_id=task_id,
-                     event_id=event_id, stim_id=stim_id, speaker_id=speaker, response=slider_value, response_time=response_time,
-                     n_reps=n_reps, isi=isi)
+        # save results trial by trial
+        row = table.Row(sub_id=sub_id, cond_id=cond_id, block_id=block_id, task_id=task_id, 
+                        event_id=event_id, stim_id=stim_id, speaker_id=speaker, 
+                        response=slider_value, response_time=response_time, n_reps=n_reps, isi=isi)
+        table.write(row)
+
     print("Done with test")
 
+
+def get_speaker_set(task_id):
+    
+    # define speaker set depending on task_id
+    if task_id == 1:
+        speaker_set = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]        
+    elif task_id == 2:
+        speaker_set = [1, 2, 3, 4, 5]
+    elif task_id == 3:
+        speaker_set = [5, 6, 7, 8, 9]
+    else:
+        return print('You can only set task_id to 1, 2 or 3')
+    
+    return speaker_set
+
+def get_random_USO():
+    
+    # pick a random USO out of the precomputed USOs and return it together with the file name
+    random_index = random.randint(0, len(precomputed_USOs) - 1)
+    USO = slab.Sound(precomputed_USOs[random_index])
+    stim_id = USO_file_names[random_index]
+    return USO, stim_id
+
+def play_USO_from_speaker(USO, speaker):
+    
+    # equalize USO
+    USO = apply_mgb_equalization(signal=USO, speaker=freefield.pick_speakers(speaker)[0])
+    
+    # play USO from speaker
+    freefield.set_signal_and_speaker(signal=USO, speaker=speaker, equalize=False)
+    freefield.play(kind=1, proc='RX81')
+    
+    # clear buffer
+    freefield.write(tag='data0', value=0, processors='RX81')
 
 def save_results(sub_id, cond_id, block_id, task_id, event_id, stim_id, speaker_id, response, response_time, n_reps, isi):
 
