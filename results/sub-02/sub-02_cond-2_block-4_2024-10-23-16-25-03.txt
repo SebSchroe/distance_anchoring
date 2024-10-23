@@ -1,0 +1,10 @@
+trial,sub_id,cond_id,block_id
+1,	02,	2,	4
+1,	02,	2,	4
+1,	02,	2,	4
+1,	02,	2,	4
+1,	02,	2,	4
+1,	02,	2,	4
+1,	02,	dies_ist_ein_test.txt,	4
+1,	02,	dies_ist_ein_test.txt,	0.0576
+1,	02,	dies_ist_ein_test.txt,	nan
