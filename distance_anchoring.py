@@ -8,15 +8,15 @@ import random
 import serial
 import numpy as np
 import pandas as pd
-
+import LedControl
 # TODO: add function to test speaker
 # TODO: make code more stable with try/except
 
 # global variables
 DIR = pathlib.Path(os.curdir)
 normalization_method = "mgb_normalization"
-port = "COM5"
-slider = serial.Serial(port, baudrate=9600, timeout=0, rtscts=False)
+#port = "COM5"
+#slider = serial.Serial(port, baudrate=9600, timeout=0, rtscts=False)
 speaker_dict = {0: 2.00,
                 1: 3.00,
                 2: 4.00,
@@ -33,7 +33,7 @@ speaker_dict = {0: 2.00,
 results_folder = DIR / 'results'
 
 # define columns for results saving
-header = ['sub_id', 'cond_id', 'block_id', 'task_id', 'event_id', 'stim_id', 'speaker_id', 'response', 'response_time', 'n_reps', 'isi'] 
+header = ['sub_id', 'cond_id', 'block_id', 'task_id', 'event_id', 'stim_id', 'speaker_id', 'led', 'led_distance', 'response_time', 'n_reps', 'isi']
 
 # precompute USOs
 USO_file_folder = DIR / 'data' / 'cutted_USOs' / 'uso_300ms_new'
@@ -42,8 +42,9 @@ precomputed_USOs = slab.Precomputed([slab.Sound(os.path.join(USO_file_folder, f)
 
 # initialize setup to connect to the processors
 def initialize_setup():
-    procs = ["RX81", "RX8", DIR / "data" / "rcx" / "cathedral_play_buf.rcx"]
-    freefield.initialize("cathedral", device=procs, zbus=False, connection="USB")
+    # procs = ["RX81", "RX8", DIR / "data" / "rcx" / "cathedral_play_buf.rcx"]
+    # freefield.initialize("cathedral", device=procs, zbus=False, connection="USB")
+    freefield.freefield.initialize(setup="cathedral", default="play_birec", connection="USB", zbus=False)
     freefield.SETUP = "cathedral"
     freefield.SPEAKERS = freefield.read_speaker_table()
     freefield.set_logger("DEBUG") #TODO: Lukas is using 'INFO' now.
@@ -56,7 +57,7 @@ def start_block(sub_id, cond_id, block_id):
     if sub_id == 'test_run':
         if cond_id == 1:
             if block_id in [1, 2, 4]:
-                execute_procedure(test, 2, 1, 0.3)
+                execute_procedure(test, 2, 5, 0.3)
             elif block_id in [3, 5]:
                 execute_procedure(training, 2, 15, 2)
             elif block_id == 6:
@@ -119,8 +120,9 @@ def training(sub_id, cond_id, block_id, task_id, n_reps, isi):
         USO, stim_id = get_random_USO()
 
         # read slider value and convert it to speaker value
-        slider_value = get_slider_value()
-        closest_speaker = min(speaker_dic, key=lambda k: abs(speaker_dic[k] - slider_value)) # calculates speaker which is closest to distance of the slider value
+        led = LedControl.CURR_LED
+        led_distance = LedControl.led_to_meter(curr_led=led)
+        closest_speaker = min(speaker_dic, key=lambda k: abs(speaker_dic[k] - led_distance)) # calculates speaker which is closest to distance of the slider value
 
         # equalize USO und play from speaker
         play_USO_from_speaker(USO, closest_speaker)
@@ -128,14 +130,14 @@ def training(sub_id, cond_id, block_id, task_id, n_reps, isi):
         # finish this trial
         event_id = seq.this_n + 1
         print(f'Trial: {event_id}')
-        print(f'Slider value: {slider_value:.2f}')
+        print(f'LED distance: {led_distance:.2f}')
         print(f'Closest speaker: {closest_speaker}')
         time.sleep(isi)
 
         # save results trial by trial
         row = table.Row(sub_id=sub_id, cond_id=cond_id, block_id=block_id, task_id=task_id, 
                         event_id=event_id, stim_id=stim_id, speaker_id=closest_speaker, 
-                        response=slider_value, response_time=np.nan, n_reps=n_reps, isi=isi)
+                        led=led, led_distance=led_distance, response_time=np.nan, n_reps=n_reps, isi=isi)
         table.write(row)
         
     print("Done with training")
@@ -161,7 +163,8 @@ def test(sub_id, cond_id, block_id, task_id, n_reps, isi):
         
         # wait for response and read it
         time_before = time.time()
-        slider_value = get_slider_value()
+        led = LedControl.get_led()
+        led_distance = LedControl.led_to_meter(curr_led=led)
         time_after = time.time()
         response_time = time_after - time_before
 
@@ -169,13 +172,14 @@ def test(sub_id, cond_id, block_id, task_id, n_reps, isi):
         event_id = seq.this_n + 1
         print(f'Trial: {event_id}')
         print(f'speaker_id: {speaker}')
-        print(f'slider_value: {slider_value:.2f}')
+        print(f'led_value: {led}')
+
         time.sleep(isi)
 
         # save results trial by trial
         row = table.Row(sub_id=sub_id, cond_id=cond_id, block_id=block_id, task_id=task_id, 
-                        event_id=event_id, stim_id=stim_id, speaker_id=speaker, 
-                        response=slider_value, response_time=response_time, n_reps=n_reps, isi=isi)
+                        event_id=event_id, stim_id=stim_id, speaker_id=speaker, led=led,
+                        led_distance=led_distance, response_time=response_time, n_reps=n_reps, isi=isi)
         table.write(row)
 
     print("Done with test")
@@ -213,7 +217,7 @@ def play_USO_from_speaker(USO, speaker):
     freefield.play(kind=1, proc='RX81')
     
     # clear buffer
-    freefield.write(tag='data0', value=0, processors='RX81')
+    # freefield.write(tag='data0', value=0, processors='RX81') // not needed
 
 def save_results(sub_id, cond_id, block_id, task_id, event_id, stim_id, speaker_id, response, response_time, n_reps, isi):
 
@@ -255,6 +259,7 @@ def save_results(sub_id, cond_id, block_id, task_id, event_id, stim_id, speaker_
     df_curr_results.to_csv(file_name, mode='w', header=True, index=False)
 
 # read and return slider value
+'''
 def get_slider_value(serial_port=slider, in_metres=True):
     serial_port.flushInput()
     buffer_string = ''
@@ -270,7 +275,7 @@ def get_slider_value(serial_port=slider, in_metres=True):
                 if in_metres:
                     last_received = np.interp(last_received, xp=[0, 1023], fp=[0, 15]) - 2.0
                 return last_received
-
+'''
 # new equalization method (universally applicable)
 def quadratic_func(x, a, b, c):
     return a * x ** 2 + b * x + c

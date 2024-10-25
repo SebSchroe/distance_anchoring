@@ -1,11 +1,12 @@
 # import necessary modules
 import freefield
 import distance_anchoring
+import LedControl
 
 # set global variables
-sub_id = '01' # choose 'test_run' for functionality check (only 1 trial per speaker)
+sub_id = 'test_run' # choose 'test_run' for functionality check (only 1 trial per speaker)
 cond_id = 1
-block_id = 6
+block_id = 3
 
 """
 cond_id:    1 -> block 1, 2, 3, 4, 5 with task_id = 2
@@ -19,7 +20,15 @@ task_id:    1 -> nearest_speaker_id = 0, farthest_speaker_id = 10
 """
 # initialize setup
 distance_anchoring.initialize_setup()
+LedControl.start_led_control()
+
 
 # start experiment block by block and flush all buffers after each block
+while LedControl.CURR_COMMAND != 'green':
+    print('Waiting for input', end='\r')
+    continue
+
 distance_anchoring.start_block(sub_id=sub_id, cond_id=cond_id, block_id=block_id)
 freefield.flush_buffers(processor='RX81')
+
+LedControl.stop_led_control()
