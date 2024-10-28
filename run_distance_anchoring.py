@@ -6,7 +6,7 @@ import LedControl
 # set global variables
 sub_id = 'test_run'  # choose 'test_run' for functionality check (only 1 trial per speaker)
 cond_id = 1
-block_id = 3
+block_id = 1
 
 """
 cond_id:    1 -> block 1, 2, 3, 4, 5 with task_id = 2
@@ -21,7 +21,6 @@ task_id:    1 -> nearest_speaker_id = 0, farthest_speaker_id = 10
 # initialize setup
 distance_anchoring.initialize_setup()
 LedControl.start_led_control()
-
 
 # start experiment block by block and flush all buffers after each block
 # waiting for participant pressing 'A' to start
