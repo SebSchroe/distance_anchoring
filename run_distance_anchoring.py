@@ -24,6 +24,7 @@ LedControl.start_led_control()
 
 
 # start experiment block by block and flush all buffers after each block
+# waiting for participant pressing 'A' to start
 while LedControl.CURR_COMMAND != 'green':
     print('Waiting for input', end='\r')
     continue

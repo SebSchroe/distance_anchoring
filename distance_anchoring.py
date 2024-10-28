@@ -33,7 +33,7 @@ speaker_dict = {0: 2.00,
 results_folder = DIR / 'results'
 
 # define columns for results saving
-header = ['sub_id', 'cond_id', 'block_id', 'task_id', 'event_id', 'stim_id', 'speaker_id', 'led', 'led_distance', 'response_time', 'n_reps', 'isi']
+header = ['sub_id', 'cond_id', 'block_id', 'task_id', 'event_id', 'stim_id', 'speaker_id', 'led_id', 'led_distance', 'response_time', 'n_reps', 'isi']
 
 # precompute USOs
 USO_file_folder = DIR / 'data' / 'cutted_USOs' / 'uso_300ms_new'
@@ -105,7 +105,7 @@ def training(sub_id, cond_id, block_id, task_id, n_reps, isi):
 
     # set speaker set depending on task_id
     speaker_set = get_speaker_set(task_id)
-    
+
     # filter speaker_dict depending on speaker set
     speaker_dic = {key: speaker_dict[key] for key in speaker_set if key in speaker_dict}
 
@@ -120,7 +120,7 @@ def training(sub_id, cond_id, block_id, task_id, n_reps, isi):
         USO, stim_id = get_random_USO()
 
         # read slider value and convert it to speaker value
-        led = LedControl.CURR_LED
+        led_id = LedControl.CURR_LED
         led_distance = LedControl.led_to_meter(curr_led=led)
         closest_speaker = min(speaker_dic, key=lambda k: abs(speaker_dic[k] - led_distance)) # calculates speaker which is closest to distance of the slider value
 
@@ -135,11 +135,11 @@ def training(sub_id, cond_id, block_id, task_id, n_reps, isi):
         time.sleep(isi)
 
         # save results trial by trial
-        row = table.Row(sub_id=sub_id, cond_id=cond_id, block_id=block_id, task_id=task_id, 
-                        event_id=event_id, stim_id=stim_id, speaker_id=closest_speaker, 
-                        led=led, led_distance=led_distance, response_time=np.nan, n_reps=n_reps, isi=isi)
+        row = table.Row(sub_id=sub_id, cond_id=cond_id, block_id=block_id, task_id=task_id,
+                        event_id=event_id, stim_id=stim_id, speaker_id=closest_speaker,
+                        led_id=led_id, led_distance=led_distance, response_time=np.nan, n_reps=n_reps, isi=isi)
         table.write(row)
-        
+
     print("Done with training")
 
 # main code for executing test block
@@ -160,10 +160,10 @@ def test(sub_id, cond_id, block_id, task_id, n_reps, isi):
 
         # equalize USO und play from speaker
         play_USO_from_speaker(USO, speaker)
-        
+
         # wait for response and read it
         time_before = time.time()
-        led = LedControl.get_led()
+        led_id = LedControl.get_led()
         led_distance = LedControl.led_to_meter(curr_led=led)
         time_after = time.time()
         response_time = time_after - time_before
@@ -172,13 +172,13 @@ def test(sub_id, cond_id, block_id, task_id, n_reps, isi):
         event_id = seq.this_n + 1
         print(f'Trial: {event_id}')
         print(f'speaker_id: {speaker}')
-        print(f'led_value: {led}')
+        print(f'led_value: {led_id}')
 
         time.sleep(isi)
 
         # save results trial by trial
-        row = table.Row(sub_id=sub_id, cond_id=cond_id, block_id=block_id, task_id=task_id, 
-                        event_id=event_id, stim_id=stim_id, speaker_id=speaker, led=led,
+        row = table.Row(sub_id=sub_id, cond_id=cond_id, block_id=block_id, task_id=task_id,
+                        event_id=event_id, stim_id=stim_id, speaker_id=speaker, led_id=led_id,
                         led_distance=led_distance, response_time=response_time, n_reps=n_reps, isi=isi)
         table.write(row)
 
@@ -186,21 +186,21 @@ def test(sub_id, cond_id, block_id, task_id, n_reps, isi):
 
 
 def get_speaker_set(task_id):
-    
+
     # define speaker set depending on task_id
     if task_id == 1:
-        speaker_set = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]        
+        speaker_set = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     elif task_id == 2:
         speaker_set = [1, 2, 3, 4, 5]
     elif task_id == 3:
         speaker_set = [5, 6, 7, 8, 9]
     else:
         return print('You can only set task_id to 1, 2 or 3')
-    
+
     return speaker_set
 
 def get_random_USO():
-    
+
     # pick a random USO out of the precomputed USOs and return it together with the file name
     random_index = random.randint(0, len(precomputed_USOs) - 1)
     USO = slab.Sound(precomputed_USOs[random_index])
@@ -208,14 +208,14 @@ def get_random_USO():
     return USO, stim_id
 
 def play_USO_from_speaker(USO, speaker):
-    
+
     # equalize USO
     USO = apply_mgb_equalization(signal=USO, speaker=freefield.pick_speakers(speaker)[0])
-    
+
     # play USO from speaker
     freefield.set_signal_and_speaker(signal=USO, speaker=speaker, equalize=False)
     freefield.play(kind=1, proc='RX81')
-    
+
     # clear buffer
     # freefield.write(tag='data0', value=0, processors='RX81') // not needed
 
@@ -258,24 +258,6 @@ def save_results(sub_id, cond_id, block_id, task_id, event_id, stim_id, speaker_
     df_curr_results = df_curr_results._append(new_row, ignore_index=True)
     df_curr_results.to_csv(file_name, mode='w', header=True, index=False)
 
-# read and return slider value
-'''
-def get_slider_value(serial_port=slider, in_metres=True):
-    serial_port.flushInput()
-    buffer_string = ''
-    while True:
-        while serial_port.inWaiting() == 0: # added waiting loop until new values are in buffer
-            time.sleep(0.05)
-        buffer_string += serial_port.read(serial_port.inWaiting()).decode("ascii")
-        if '\n' in buffer_string:
-            lines = buffer_string.split('\n')  # Guaranteed to have at least 2 entries
-            last_received = lines[-2].rstrip()
-            if last_received:
-                last_received = int(last_received)
-                if in_metres:
-                    last_received = np.interp(last_received, xp=[0, 1023], fp=[0, 15]) - 2.0
-                return last_received
-'''
 # new equalization method (universally applicable)
 def quadratic_func(x, a, b, c):
     return a * x ** 2 + b * x + c
