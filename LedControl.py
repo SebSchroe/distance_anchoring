@@ -9,7 +9,7 @@ RUN = True
 MIN_LED = 90
 MAX_LED = 450
 LEDS_PER_METER = 30
-MIN_LED_DISTANCE = 1  # in meter
+MIN_LED_DISTANCE = 1.1  # in meter
 CURR_COMMAND = None
 CURR_LED = MIN_LED
 

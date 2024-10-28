@@ -4,7 +4,7 @@ import distance_anchoring
 import LedControl
 
 # set global variables
-sub_id = 'test_run' # choose 'test_run' for functionality check (only 1 trial per speaker)
+sub_id = 'test_run'  # choose 'test_run' for functionality check (only 1 trial per speaker)
 cond_id = 1
 block_id = 3
 
@@ -33,3 +33,4 @@ distance_anchoring.start_block(sub_id=sub_id, cond_id=cond_id, block_id=block_id
 freefield.flush_buffers(processor='RX81')
 
 LedControl.stop_led_control()
+

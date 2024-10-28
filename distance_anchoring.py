@@ -57,9 +57,9 @@ def start_block(sub_id, cond_id, block_id):
     if sub_id == 'test_run':
         if cond_id == 1:
             if block_id in [1, 2, 4]:
-                execute_procedure(test, 2, 5, 0.3)
+                execute_procedure(test, 2, 1, 0.3)
             elif block_id in [3, 5]:
-                execute_procedure(training, 2, 15, 2)
+                execute_procedure(training, 2, 10, 2)
             elif block_id == 6:
                 execute_procedure(test, 1, 1, 0.3)
             else:
@@ -121,7 +121,7 @@ def training(sub_id, cond_id, block_id, task_id, n_reps, isi):
 
         # read slider value and convert it to speaker value
         led_id = LedControl.CURR_LED
-        led_distance = LedControl.led_to_meter(curr_led=led)
+        led_distance = LedControl.led_to_meter(curr_led=led_id)
         closest_speaker = min(speaker_dic, key=lambda k: abs(speaker_dic[k] - led_distance)) # calculates speaker which is closest to distance of the slider value
 
         # equalize USO und play from speaker
@@ -130,6 +130,7 @@ def training(sub_id, cond_id, block_id, task_id, n_reps, isi):
         # finish this trial
         event_id = seq.this_n + 1
         print(f'Trial: {event_id}')
+        print(f'led_id: {led_id}')
         print(f'LED distance: {led_distance:.2f}')
         print(f'Closest speaker: {closest_speaker}')
         time.sleep(isi)
@@ -164,7 +165,7 @@ def test(sub_id, cond_id, block_id, task_id, n_reps, isi):
         # wait for response and read it
         time_before = time.time()
         led_id = LedControl.get_led()
-        led_distance = LedControl.led_to_meter(curr_led=led)
+        led_distance = LedControl.led_to_meter(curr_led=led_id)
         time_after = time.time()
         response_time = time_after - time_before
 
@@ -172,7 +173,8 @@ def test(sub_id, cond_id, block_id, task_id, n_reps, isi):
         event_id = seq.this_n + 1
         print(f'Trial: {event_id}')
         print(f'speaker_id: {speaker}')
-        print(f'led_value: {led_id}')
+        print(f'led_id: {led_id}')
+        print(f'LED distance: {led_distance}')
 
         time.sleep(isi)
 
