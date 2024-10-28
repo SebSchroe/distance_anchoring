@@ -1,1 +1,0 @@
-sub_id,cond_id,block_id,task_id,event_id,stim_id,speaker_id,response,response_time,n_reps,isi
