@@ -8,10 +8,10 @@ import threading
 RUN = True
 MIN_LED = 90
 MAX_LED = 450
-LEDS_PER_METER = 30
-MIN_LED_DISTANCE = 1.1  # in meter
-CURR_COMMAND = None
 CURR_LED = MIN_LED
+MIN_LED_DISTANCE = 1.1  # in meter
+LEDS_PER_METER = 30
+CURR_COMMAND = None
 
 
 def init_controllers(multiple_controllers=False):
@@ -78,7 +78,6 @@ def led_control_func():
     global CURR_LED
     global CURR_COMMAND
     RUN = True
-    # curr_led = MIN_LED
     arduino = init_arduino()
     controller = init_controllers()
     while RUN:
@@ -107,11 +106,17 @@ def stop_led_control():
 def get_led(on_command='green'):
     while CURR_COMMAND != on_command:
         continue
-    led = CURR_LED
+    led = int(CURR_LED)
+    time.sleep(0.2)
     return led
 
 
 def led_to_meter(curr_led):
     adjusted_led = curr_led - MIN_LED
-    curr_led_distance = adjusted_led / LEDS_PER_METER + MIN_LED_DISTANCE
+    curr_led_distance = round(adjusted_led / LEDS_PER_METER + MIN_LED_DISTANCE, ndigits=2)
     return curr_led_distance
+
+
+
+
+
