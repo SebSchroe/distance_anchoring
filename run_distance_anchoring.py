@@ -4,13 +4,9 @@ import distance_anchoring
 import LedControl
 
 # set global variables
-sub_id = 'test_run'  # choose 'test_run' for functionality check (only 1 trial per speaker)
+sub_id = 'Basti'  # choose 'test_run' for functionality check (only 1 trial per speaker)
 cond_id = 1
-<<<<<<< Updated upstream
-block_id = 1
-=======
 block_id = 6
->>>>>>> Stashed changes
 
 """
 cond_id:    1 -> block 1, 2, 3, 4, 5 with task_id = 2
