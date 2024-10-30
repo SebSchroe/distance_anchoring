@@ -1,5 +1,6 @@
 import pathlib
 import os
+import re
 import LinearRegDiagnostic
 import seaborn as sns
 import pandas as pd
@@ -126,6 +127,7 @@ def get_response_subset_df(df, nearest_speaker, farthest_speaker):
     response_subset.rename(columns={'response_subset': 'response'}, inplace=True)
     return response_subset
 
+'''
 def get_concat_df(cond_ids, sub_ids_dict, block_ids):
     
     # create empty dataframe
@@ -143,7 +145,7 @@ def get_concat_df(cond_ids, sub_ids_dict, block_ids):
             
             # loop through all sub_ids and concatenate data file
             for sub_id in sub_ids:
-                file_path = DIR / 'results' / f'results_sub-{sub_id}_cond-{cond_id}_block-{block_id}_task-{task_id}.csv'
+                file_path = DIR / 'results' / f'sub-{sub_id}' / f'sub-{sub_id}_cond-{cond_id}_block-{block_id}_task-{task_id}.csv'
                 
                 try:
                     new_df = pd.read_csv(file_path)
@@ -152,6 +154,40 @@ def get_concat_df(cond_ids, sub_ids_dict, block_ids):
                     print(f'No data found for sub_id {sub_id}, cond_id {cond_id} and block_id {block_id}.')
                     
     return concat_df
+'''
+def get_concat_df(cond_ids, sub_ids_dict, block_ids):
+    # Create an empty dataframe to store concatenated results
+    concat_df = pd.DataFrame()
+    
+    # Define a regex pattern to match files
+    file_pattern = re.compile(r"sub-(\d+)_cond-(\d+)_block-(\d+)_\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}\.txt")
+
+    # Loop over each condition and its associated sub_ids
+    for cond_id in cond_ids:
+        sub_ids = sub_ids_dict.get(cond_id, [])
+        
+        # Loop over each sub_id folder
+        for sub_id in sub_ids:
+            sub_dir = DIR / 'results' / f'sub-{sub_id}'
+            
+            # Search for files matching the pattern within the sub_id directory
+            for file_path in sub_dir.glob("*.txt"):
+                match = file_pattern.search(file_path.name)
+                
+                # If the file matches the pattern and belongs to the correct condition and block
+                if match:
+                    found_sub_id, found_cond_id, found_block_id = map(int, match.groups())
+                    
+                    # Filter based on block and condition
+                    if found_cond_id == cond_id and found_block_id in block_ids:
+                        try:
+                            new_df = pd.read_csv(file_path)
+                            concat_df = pd.concat([concat_df, new_df], axis=0, ignore_index=True)
+                        except FileNotFoundError:
+                            print(f"No data found for sub_id {sub_id}, cond_id {cond_id}, block_id {found_block_id}.")
+                            
+    return concat_df
+
 
 def calc_diff_presented_percieved(df):
     df['diff_presented_percieved'] = df['speaker_distance'] - df['response']

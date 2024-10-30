@@ -4,9 +4,9 @@ from analysis import speaker_dict
 import seaborn as sns
 
 # %% set global variables
-cond_ids = [1, 2]
-sub_ids_dict = {1: [1, 3, 4, 7], 2:[1, 2, 6]} # 1: [1, 3, 4, 7], 2:[1, 2, 6]
-block_ids = [2, 4, 6]
+cond_ids = [1]
+sub_ids_dict = {1: ['Basti']} # 1: [1, 3, 4, 7], 2:[1, 2, 6]
+block_ids = [1, 2, 3, 4, 5, 6]
 
 # %% load and transform data
 df = analysis.get_concat_df(cond_ids=cond_ids, sub_ids_dict=sub_ids_dict, block_ids=block_ids)
