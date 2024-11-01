@@ -62,11 +62,11 @@ def start_block(sub_id, cond_id, block_id):
 
         elif cond_id == 2:
             if block_id in [1, 2, 4]:
-                execute_procedure(test, 3, 15, 0.3)
+                execute_procedure(test, 3, 1, 0.3)
             elif block_id in [3, 5]:
                 execute_procedure(training, 3, 11, 2)
             elif block_id == 6:
-                execute_procedure(test, 1, 15, 0.3)
+                execute_procedure(test, 1, 1, 0.3)
             else:
                 print('block_id can only be 1 to 6')
         else:
