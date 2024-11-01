@@ -4,25 +4,28 @@ from analysis import speaker_dict
 import seaborn as sns
 
 # %% set global variables
-cond_ids = [1]
-sub_ids_dict = {1: ['Basti']} # 1: [1, 3, 4, 7], 2:[1, 2, 6]
-block_ids = [1, 2, 3, 4, 5, 6]
+sub_ids = ['Basti', '01']
+cond_ids = [1, 2]
+block_ids = [1, 2, 4, 6]
 
 # %% load and transform data
-df = analysis.get_concat_df(cond_ids=cond_ids, sub_ids_dict=sub_ids_dict, block_ids=block_ids)
+df = analysis.get_concat_df(sub_ids=sub_ids)
 df['speaker_distance'] = df['speaker_id'].apply(lambda x: analysis.get_speaker_distance(x, speaker_dict))
 
+# %% filter for specific cond_ids and block_ids
+df = df[df['cond_id'].isin(cond_ids) & df['block_id'].isin(block_ids)]
+
 # %% plot raw datapoints as they are
-analysis.plot_data(df=df, x='speaker_distance', y='response',
+analysis.plot_data(df=df, x='speaker_distance', y='led_distance',
                    col='block_id', row='cond_id', hue='sub_id', kind='scatterplot')
 
 # %% create new dataframe with mean values grouped by different variables
-means_df = df.groupby(['sub_id', 'speaker_distance', 'block_id', 'cond_id'], as_index=False).agg(mean_response=('response', 'mean'))
-analysis.plot_data(df=means_df, x='speaker_distance', y='mean_response',
+means_df = df.groupby(['sub_id', 'speaker_distance', 'block_id', 'cond_id'], as_index=False).agg(mean_led_distance=('led_distance', 'mean'))
+analysis.plot_data(df=means_df, x='speaker_distance', y='mean_led_distance',
                    col='block_id', row='cond_id', hue='sub_id', kind='lineplot')
 
 # %% fitting a model
-analysis.plot_data(df=means_df, x='speaker_distance', y='mean_response',
+analysis.plot_data(df=means_df, x='speaker_distance', y='mean_led_distance',
                    col='block_id', row='cond_id', hue='sub_id', kind='regplot')
 
 # %% calculate raw experiment duration

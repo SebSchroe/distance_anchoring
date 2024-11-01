@@ -155,37 +155,26 @@ def get_concat_df(cond_ids, sub_ids_dict, block_ids):
                     
     return concat_df
 '''
-def get_concat_df(cond_ids, sub_ids_dict, block_ids):
-    # Create an empty dataframe to store concatenated results
+def get_concat_df(sub_ids):
+    
+    # create empty dataframe
     concat_df = pd.DataFrame()
     
-    # Define a regex pattern to match files
-    file_pattern = re.compile(r"sub-(\d+)_cond-(\d+)_block-(\d+)_\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}\.txt")
-
-    # Loop over each condition and its associated sub_ids
-    for cond_id in cond_ids:
-        sub_ids = sub_ids_dict.get(cond_id, [])
+    # loop through all sub_ids
+    for sub_id in sub_ids:
+        sub_dir = DIR / 'results' / f'sub-{sub_id}'
         
-        # Loop over each sub_id folder
-        for sub_id in sub_ids:
-            sub_dir = DIR / 'results' / f'sub-{sub_id}'
-            
-            # Search for files matching the pattern within the sub_id directory
-            for file_path in sub_dir.glob("*.txt"):
-                match = file_pattern.search(file_path.name)
+        # load all containing result files
+        for file_path in sub_dir.glob("*.txt"):
+            try:
+                # get csv file and concatenate
+                new_df = pd.read_csv(file_path)
+                concat_df = pd.concat([concat_df, new_df], axis=0, ignore_index=True)
+            except FileNotFoundError:
+                print(f"File not found: {file_path}")
+            except pd.errors.EmptyDataError:
+                print(f"Empty file: {file_path}")
                 
-                # If the file matches the pattern and belongs to the correct condition and block
-                if match:
-                    found_sub_id, found_cond_id, found_block_id = map(int, match.groups())
-                    
-                    # Filter based on block and condition
-                    if found_cond_id == cond_id and found_block_id in block_ids:
-                        try:
-                            new_df = pd.read_csv(file_path)
-                            concat_df = pd.concat([concat_df, new_df], axis=0, ignore_index=True)
-                        except FileNotFoundError:
-                            print(f"No data found for sub_id {sub_id}, cond_id {cond_id}, block_id {found_block_id}.")
-                            
     return concat_df
 
 
