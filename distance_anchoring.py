@@ -54,7 +54,7 @@ def start_block(sub_id, cond_id, block_id):
             if block_id in [1, 2, 4]:
                 execute_procedure(test, 2, 1, 0.3)
             elif block_id in [3, 5]:
-                execute_procedure(training, 2, 11, 2)
+                execute_procedure(training, 1, 11, 2)
             elif block_id == 6:
                 execute_procedure(test, 1, 1, 0.3)
             else:

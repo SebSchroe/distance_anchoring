@@ -4,8 +4,8 @@ import distance_anchoring
 import LedControl
 
 # set global variables
-sub_id = '01'  # choose 'test_run' for functionality check (only 1 trial per speaker)
-cond_id = 1
+sub_id = '06'  # choose 'test_run' for functionality check (only 1 trial per speaker)
+cond_id = 2
 block_id = 6
 
 """
