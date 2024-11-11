@@ -67,28 +67,24 @@ def create_diagnostic_plots(sub_id, cond_id, block_id):
 def plot_data(df, x, y, col, row, hue, kind='scatterplot', baseline=True):
     
     # data plotting
-    g = sns.FacetGrid(df, col=col, row=row, hue=hue, height=4, aspect=1.5, palette='tab10')
+    g = sns.FacetGrid(df, col=col, row=row, hue=hue, palette='tab10')
     
     if kind == 'scatterplot':
         g.map(sns.scatterplot, x, y).add_legend()
     elif kind == 'lineplot':
-        g.map(sns.lineplot, x, y).add_legend()
+        g.map(sns.lineplot, x, y, marker='o').add_legend()
     elif kind == 'regplot':
         g.map(sns.regplot, x, y, order=2).add_legend()
     
+    g.add_legend(bbox_to_anchor=(1.05, 0.5), loc='center left', borderaxespad=0)
     # adjust layout
     for ax in g.axes.flat:
-        #ax.set_xlim(0, 13)
-        #ax.set_ylim(0, 13)
-        #ax.set_xticks(np.arange(0, 13, 1))
-        #ax.set_yticks(np.arange(0, 13, 1))
-        #ax.set_aspect('equal', adjustable='box')
+        ax.set_aspect('equal', adjustable='box')
         
         if baseline:
             # add 1:1 line through the origin
             ax.plot([2, 12], [2, 12], ls='--', color='grey', label='1:1 Line')
     
-    plt.tight_layout()
     plt.show()
     
     
