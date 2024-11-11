@@ -8,7 +8,7 @@ from analysis import speaker_dict
 
 
 # set global variables
-sub_ids = ['01', '02', '03', '06', '09', '10', '16', '24']
+sub_ids = ['12']  # ['01', '02', '03', '06', '09', '10','12', '16', '24']
 cond_ids = [1, 2]
 block_ids = [1, 2, 4, 6]
 
@@ -20,7 +20,7 @@ df['speaker_distance'] = df['speaker_id'].apply(lambda x: analysis.get_speaker_d
 df = df[df['cond_id'].isin(cond_ids) & df['block_id'].isin(block_ids)]
 
 # create dataframe with mean results at each distance per participant
-means_df = df.groupby(['sub_id','cond_id', 'block_id', 'speaker_distance'], as_index=False).agg(mean_led_distance=('led_distance', 'mean'))
+means_df = df.groupby(['sub_id', 'cond_id', 'block_id', 'speaker_distance'], as_index=False).agg(mean_led_distance=('led_distance', 'mean'))
 
 # convert speaker_distance in mean_df to categorical variable
 distance_order = sorted(means_df['speaker_distance'].unique())
