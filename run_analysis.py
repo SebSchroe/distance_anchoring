@@ -8,7 +8,7 @@ from analysis import speaker_dict
 
 
 # set global variables
-sub_ids = ['01', '02', '03', '06', '09', '10','12', '16', '24']
+sub_ids = ['01', '02', '03', '06', '09', '10', '12', '14', '16', '24']
 cond_ids = [1, 2]
 block_ids = [1, 2, 4, 6]
 
