@@ -123,34 +123,6 @@ def get_response_subset_df(df, nearest_speaker, farthest_speaker):
     response_subset.rename(columns={'response_subset': 'response'}, inplace=True)
     return response_subset
 
-'''
-def get_concat_df(cond_ids, sub_ids_dict, block_ids):
-    
-    # create empty dataframe
-    concat_df = pd.DataFrame()
-    
-    # loop through all conditions and get sub_ids
-    for cond_id in cond_ids:
-        sub_ids = sub_ids_dict.get(cond_id, [])
-                
-        # loop through all block_ids and get task_ids
-        for block_id in block_ids:
-            
-            # get task_id of current block
-            task_id = get_task_id(cond_id, block_id)
-            
-            # loop through all sub_ids and concatenate data file
-            for sub_id in sub_ids:
-                file_path = DIR / 'results' / f'sub-{sub_id}' / f'sub-{sub_id}_cond-{cond_id}_block-{block_id}_task-{task_id}.csv'
-                
-                try:
-                    new_df = pd.read_csv(file_path)
-                    concat_df = pd.concat([concat_df, new_df], axis=0, ignore_index=True)
-                except FileNotFoundError:
-                    print(f'No data found for sub_id {sub_id}, cond_id {cond_id} and block_id {block_id}.')
-                    
-    return concat_df
-'''
 def get_concat_df(sub_ids):
     
     # create empty dataframe
