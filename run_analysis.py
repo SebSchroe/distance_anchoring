@@ -44,7 +44,7 @@ analysis.plot_data(df=means_df, x='speaker_distance', y='mean_led_distance',
                    col='block_id', row='cond_id', hue='sub_id', kind='lineplot')
 
 # %% plot boxplot of mean results
-# TODO: add a separate function for boxplotting
+analysis.plot_boxplot(df=means_df, block_ids=block_ids)
 
 # %% fitting mean results of each sub_id
 analysis.plot_data(df=means_df, x='speaker_distance', y='mean_led_distance',

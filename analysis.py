@@ -87,6 +87,22 @@ def plot_data(df, x, y, col, row, hue, kind='scatterplot', baseline=True):
     
     plt.show()
     
+def plot_boxplot(df, block_ids):
+    
+    # prepare figure size and grid
+    fig, axes = plt.subplots(2, 2)
+    axes = axes.flatten()
+    
+    # loop through block_ids
+    for i, block_id in enumerate(block_ids):
+        # filter data for current block
+        block_data = df[df['block_id'] == block_id]
+        
+        # create boxplot
+        sns.boxplot(data=block_data, x='speaker_distance', y='mean_led_distance', hue='cond_id', ax=axes[i])
+
+    plt.tight_layout()
+    plt.show()
     
 def plot_signed_error_distribution_at_x(cond_id, block_id, x=2):
     
