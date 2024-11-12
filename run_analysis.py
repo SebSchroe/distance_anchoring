@@ -8,7 +8,7 @@ from analysis import speaker_dict
 
 
 # set global variables
-sub_ids = ['01', '02', '03', '06', '09', '10', '12', '14', '16', '24']
+sub_ids = ['19']#['01', '02', '03', '06', '09', '10', '12', '14', '16', '19', '24']
 cond_ids = [1, 2]
 block_ids = [1, 2, 4, 6]
 
@@ -47,8 +47,8 @@ analysis.plot_data(df=means_df, x='speaker_distance', y='mean_led_distance',
 analysis.plot_boxplot(df=means_df, block_ids=block_ids)
 
 # %% fitting mean results of each sub_id
-analysis.plot_data(df=means_df, x='speaker_distance', y='mean_led_distance',
-                   col='block_id', row='cond_id', hue='sub_id', kind='regplot')
+# analysis.plot_data(df=means_df, x='speaker_distance', y='mean_led_distance',
+#                    col='block_id', row='cond_id', hue='sub_id', kind='regplot')
 
 # %% calculate raw experiment duration
 mean_response_time_df = df.groupby(['sub_id', 'block_id', 'cond_id', 'event_id'], as_index=False).agg(mean_response_time=('response_time', 'mean'))
