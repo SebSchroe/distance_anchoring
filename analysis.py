@@ -99,8 +99,8 @@ def plot_boxplot(df, block_ids):
         block_data = df[df['block_id'] == block_id]
         
         # create boxplot
-        sns.boxplot(data=block_data, x='speaker_distance', y='mean_led_distance', hue='cond_id', ax=axes[i])
-
+        sns.boxplot(data=block_data, x='speaker_distance', y='mean_led_distance', hue='cond_id', palette='tab10', ax=axes[i])
+        
     plt.tight_layout()
     plt.show()
     

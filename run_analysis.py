@@ -8,7 +8,7 @@ from analysis import speaker_dict
 
 
 # set global variables
-sub_ids = ['19']#['01', '02', '03', '06', '09', '10', '12', '14', '16', '19', '24']
+sub_ids = ['01', '02', '03', '06', '09', '10', '12', '14', '15', '16', '19', '24']
 cond_ids = [1, 2]
 block_ids = [1, 2, 4, 6]
 
@@ -19,12 +19,15 @@ df['speaker_distance'] = df['speaker_id'].apply(lambda x: analysis.get_speaker_d
 # filter for specific cond_ids and block_ids
 df = df[df['cond_id'].isin(cond_ids) & df['block_id'].isin(block_ids)]
 
-# create dataframe with mean results at each distance per participant
-means_df = df.groupby(['sub_id', 'cond_id', 'block_id', 'speaker_distance'], as_index=False).agg(mean_led_distance=('led_distance', 'mean'))
-
-# convert speaker_distance in mean_df to categorical variable
-distance_order = sorted(means_df['speaker_distance'].unique())
-means_df['speaker_distance'] = pd.Categorical(means_df['speaker_distance'], categories=distance_order, ordered=True)
+means_df = (
+    df.groupby(['sub_id', 'cond_id', 'block_id', 'speaker_distance'], as_index=False)
+    .agg(mean_led_distance=('led_distance', 'mean'))
+    .assign(speaker_distance=lambda x: pd.Categorical(
+        x['speaker_distance'].astype(int), 
+        categories=sorted(x['speaker_distance'].unique().astype(int)), 
+        ordered=True
+    ))
+)
 
 # %% plot individual results per sub_id
 n_sub_ids_per_plot = 5
@@ -51,25 +54,25 @@ analysis.plot_boxplot(df=means_df, block_ids=block_ids)
 #                    col='block_id', row='cond_id', hue='sub_id', kind='regplot')
 
 # %% calculate raw experiment duration
-mean_response_time_df = df.groupby(['sub_id', 'block_id', 'cond_id', 'event_id'], as_index=False).agg(mean_response_time=('response_time', 'mean'))
-analysis.plot_data(df=mean_response_time_df, x='event_id', y='mean_response_time',
-                   col='block_id', row='cond_id', hue='sub_id', kind='scatterplot', baseline=False)
+# mean_response_time_df = df.groupby(['sub_id', 'block_id', 'cond_id', 'event_id'], as_index=False).agg(mean_response_time=('response_time', 'mean'))
+# analysis.plot_data(df=mean_response_time_df, x='event_id', y='mean_response_time',
+#                    col='block_id', row='cond_id', hue='sub_id', kind='scatterplot', baseline=False)
 
-# exclude all response times with event_id = 1
-filtered_mean_response_time_df = mean_response_time_df.query('event_id != 1')
+# # exclude all response times with event_id = 1
+# filtered_mean_response_time_df = mean_response_time_df.query('event_id != 1')
 
-# calculate mean response time
-mean_response_time = filtered_mean_response_time_df['mean_response_time'].mean()
+# # calculate mean response time
+# mean_response_time = filtered_mean_response_time_df['mean_response_time'].mean()
 
-# %% calculate experiment duration
-n_reps_list = [8, 9, 10, 11, 12, 13, 14, 15]
-exp_dur_list = []
+# # %% calculate experiment duration
+# n_reps_list = [8, 9, 10, 11, 12, 13, 14, 15]
+# exp_dur_list = []
 
-for n_reps in n_reps_list:
-    exp_dur = analysis.calc_experiment_duration(n_reps=n_reps, mean_response_time=mean_response_time)
-    exp_dur_list.append(exp_dur)
+# for n_reps in n_reps_list:
+#     exp_dur = analysis.calc_experiment_duration(n_reps=n_reps, mean_response_time=mean_response_time)
+#     exp_dur_list.append(exp_dur)
     
-sns.scatterplot(x=n_reps_list, y=exp_dur_list)
+# sns.scatterplot(x=n_reps_list, y=exp_dur_list)
     
 # %%
 # predict sample size
