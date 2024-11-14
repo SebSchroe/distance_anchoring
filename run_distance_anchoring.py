@@ -4,8 +4,8 @@ import distance_anchoring
 import LedControl
 
 # set global variables
-sub_id = '15'  # choose 'test_run' for functionality check (training with task_id 1 and n_reps 11)
-cond_id = 1
+sub_id = '20'  # choose 'test_run' for functionality check (training with task_id 1 and n_reps 11)
+cond_id = 2
 block_id = 6
 
 """
