@@ -2,7 +2,6 @@
 # import modules
 import analysis
 import math
-import seaborn as sns
 import pandas as pd
 from analysis import speaker_dict
 
@@ -49,7 +48,7 @@ analysis.plot_data(df=means_df, x='speaker_distance', y='mean_led_distance',
 # %% plot boxplot of mean results
 analysis.plot_boxplot(df=means_df, block_ids=block_ids)
 
-# %% fitting mean results of each sub_id
+ # %% fitting mean results of each sub_id
 # analysis.plot_data(df=means_df, x='speaker_distance', y='mean_led_distance',
 #                    col='block_id', row='cond_id', hue='sub_id', kind='regplot')
 

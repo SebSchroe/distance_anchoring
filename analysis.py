@@ -103,42 +103,10 @@ def plot_boxplot(df, block_ids):
         
     plt.tight_layout()
     plt.show()
-    
-def plot_signed_error_distribution_at_x(cond_id, block_id, x=2):
-    
-    # load data
-    df, sub_ids = get_concat_df(cond_id, block_id)
-    
-    # transform speaker_id to corresponding speaker distance
-    df['speaker_distance'] = df['speaker_id'].apply(lambda x: get_speaker_distance(x, speaker_dict))
-    df['signed_error'] = df['response'] - df['speaker_distance']
-    
-    # filter data for specific x value
-    df_filtered = df[df['speaker_distance'] == x]
-    
-    # plotting
-    plt.figure(figsize=(15, 4))
-    sns.histplot(df_filtered['signed_error'], kde=True, binwidth=0.1, color='blue')
-    
-    # layout
-    plt.title(f'signed error distribution at presented distance = {x}, block {block_id}')
-    plt.xlabel('Signed error')
-    plt.ylabel('Count')
-    plt.xlim([-7, 7])
-    plt.ylim([0, 6])
-    
-    # finalise
-    plt.tight_layout()
-    plt.show()
+
+# TODO: plot signed error distribution    
 
 # help functions
-def get_response_subset_df(df, nearest_speaker, farthest_speaker):
-    df['response_subset'] = np.where((df['speaker_id'] >= nearest_speaker) & (df['speaker_id'] <= farthest_speaker), df['response'], np.nan)
-    response_subset = df[['speaker_id', 'speaker_distance', 'response_subset']].copy()
-    response_subset.dropna(subset='response_subset', inplace=True)
-    response_subset.rename(columns={'response_subset': 'response'}, inplace=True)
-    return response_subset
-
 def get_concat_df(sub_ids):
     
     # create empty dataframe
@@ -161,20 +129,6 @@ def get_concat_df(sub_ids):
                 
     return concat_df
 
-
-def calc_diff_presented_percieved(df):
-    df['diff_presented_percieved'] = df['speaker_distance'] - df['response']
-    
-def get_delta_presented(df):
-    delta_presented = []
-    for row in range(len(df) - 1):
-        pre = df.iloc[row]['speaker_distance']
-        post = df.iloc[row + 1]['speaker_distance']
-        delta = post - pre
-        delta_presented.append(delta)
-    delta_presented.append(np.nan)
-    return delta_presented
-
 def calc_experiment_duration(n_reps, mean_response_time):
     n_reps = n_reps
     n_speaker = [5, 11]
@@ -188,22 +142,6 @@ def calc_experiment_duration(n_reps, mean_response_time):
 
     experiment_duration_m = (3 * (n_trials_1 * time_per_trial_1) + 2 * (n_trials_1 * time_per_trial_2) + (n_trials_2 * time_per_trial_1))/60
     return experiment_duration_m
-
-def get_linear_regression_values(df, x_values, y_values):
-    
-    # calculate linear regression
-    x = df[f'{x_values}'].values.reshape(-1, 1)
-    y = df[f'{y_values}']
-    model = LinearRegression()
-    model.fit(x, y)
-    y_pred = model.predict(x)
-    
-    # calculate linear regression coefficients
-    slope = model.coef_[0]
-    # intercept = model.intercept_
-    r_squared = r2_score(y, y_pred)
-    regression_coefficients = f'Slope: {slope:.2f}\nR²: {r_squared:.2f}'
-    return x, y, y_pred, regression_coefficients
 
 def get_speaker_distance(key, speaker_dict):
     return speaker_dict.get(key, None)
