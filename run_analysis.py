@@ -7,7 +7,7 @@ from analysis import speaker_dict
 
 
 # set global variables
-sub_ids = ['21']#['01', '02', '03', '5', '06', '09', '10', '12', '14', '15', '16', '19', '20', '24', '25', '26']
+sub_ids = ['01', '02', '03', '05', '06', '09', '10', '12', '14', '15', '16', '19', '20', '21', '24', '25', '26']
 cond_ids = [1, 2]
 block_ids = [1, 2, 4, 6]
 
@@ -18,6 +18,7 @@ df['speaker_distance'] = df['speaker_id'].apply(lambda x: analysis.get_speaker_d
 # filter for specific cond_ids and block_ids
 df = df[df['cond_id'].isin(cond_ids) & df['block_id'].isin(block_ids)]
 
+# calculate mean led_distance responses and convert speaker_id to categorical values
 means_df = (
     df.groupby(['sub_id', 'cond_id', 'block_id', 'speaker_distance'], as_index=False)
     .agg(mean_led_distance=('led_distance', 'mean'))
@@ -26,6 +27,15 @@ means_df = (
         categories=sorted(x['speaker_distance'].unique().astype(int)), 
         ordered=True
     ))
+)
+
+# calculate mean and std of mean led_distance responses
+mean_of_means_df = (
+    means_df.groupby(['cond_id', 'block_id', 'speaker_distance'])
+    .agg(mean_mean_led_distance=('mean_led_distance', 'mean'),
+         std_mean_led_distance=('mean_led_distance', 'std')
+         )
+    .reset_index()
 )
 
 # %% plot individual results per sub_id
@@ -44,6 +54,10 @@ analysis.plot_data(df=df, x='speaker_distance', y='led_distance',
 # %% plot mean results of each sub_id per cond_id and block_id
 analysis.plot_data(df=means_df, x='speaker_distance', y='mean_led_distance',
                    col='block_id', row='cond_id', hue='sub_id', kind='lineplot')
+
+# %% plot mean_of_means with standarddeviation
+analysis.plot_data(df=mean_of_means_df, x='speaker_distance', y='mean_mean_led_distance',
+                   col='block_id', row=None, hue='cond_id', kind='lineplot')
 
 # %% plot boxplot of mean results
 analysis.plot_boxplot(df=means_df, block_ids=block_ids)
@@ -73,10 +87,9 @@ analysis.plot_boxplot(df=means_df, block_ids=block_ids)
     
 # sns.scatterplot(x=n_reps_list, y=exp_dur_list)
     
-# %%
-# predict sample size
-# analysis.predict_sample_size(effect_size=1.071)
+# %% predict sample size
+analysis.predict_sample_size(effect_size=1.501, alpha=0.05, power=0.8, alternative='two-sided')
 
-# diagnostic plots
+# %% diagnostic plots
 # analysis.create_diagnostic_plots(sub_id=sub_id, cond_id=cond_id, block_id=4)
 
