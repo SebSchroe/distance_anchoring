@@ -103,8 +103,11 @@ def plot_boxplot(df, block_ids):
         
     plt.tight_layout()
     plt.show()
+    
 
-# TODO: plot signed error distribution    
+# TODO: plot signed error distribution
+
+# TODO: plot mean data with standarderror    
 
 # help functions
 def get_concat_df(sub_ids):
