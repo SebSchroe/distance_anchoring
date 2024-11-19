@@ -152,6 +152,7 @@ def test(sub_id, cond_id, block_id, task_id, n_reps, isi):
         print(f'speaker_id: {speaker_id}')
         print(f'led_id: {led_id}')
         print(f'LED distance: {led_distance}')
+        print(f'response_time: {response_time:.2f}')
 
         time.sleep(isi)
 
