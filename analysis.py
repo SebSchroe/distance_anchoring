@@ -38,7 +38,7 @@ def predict_sample_size(effect_size, alpha=0.05, power=0.8, alternative='two-sid
     print(f'Predicted sample size per condition: {sample_size}')
 
 # linear regression diagnostics
-def create_diagnostic_plots(sub_id, cond_id, block_id):
+def create_diagnostic_plots(df, x, y):
     '''
     1. .residual_plot() -> Residuals vs Fittes values: checks if relationship between x and y is linear (linearity)
     2. .qq_plot() -> Normal Q-Q: checks if errors/residuals are normally distibuted (normality)
@@ -46,17 +46,8 @@ def create_diagnostic_plots(sub_id, cond_id, block_id):
     4. .leverage_plot() -> Residuals vs Leverage: checks if observations are independent of each other (outliers)
     '''
     
-    # load data
-    if sub_id == 'all':
-        df, sub_ids = get_concat_df(cond_id, block_id)
-    else:
-        df = get_df(sub_id, cond_id, block_id)
-        
-    # transform data
-    df['speaker_distance'] = df['speaker_id'].apply(lambda x: get_speaker_distance(x, speaker_dict))
-    
     # fitting linear model
-    model = smf.ols(formula='response ~ speaker_distance', data=df).fit() # formula = y ~ x
+    model = smf.ols(formula=f'{y} ~ {x}', data=df).fit() # formula = y ~ x
     print(model.summary())
     
     # generate diagnostic plots
@@ -77,6 +68,7 @@ def plot_data(df, x, y, col, row, hue, kind='scatterplot', baseline=True):
         g.map(sns.regplot, x, y, order=2).add_legend()
     
     g.add_legend(bbox_to_anchor=(1.05, 0.5), loc='center left', borderaxespad=0)
+    
     # adjust layout
     for ax in g.axes.flat:
         ax.set_aspect('equal', adjustable='box')
@@ -87,24 +79,55 @@ def plot_data(df, x, y, col, row, hue, kind='scatterplot', baseline=True):
     
     plt.show()
     
-def plot_boxplot(df, block_ids):
+def plot_boxplot(df, x, y, col, hue):
     
-    # prepare figure size and grid
-    fig, axes = plt.subplots(2, 2)
-    axes = axes.flatten()
+    # create FacetGrit
+    g = sns.FacetGrid(df, col=col, hue=hue, palette='tab10')
     
-    # loop through block_ids
-    for i, block_id in enumerate(block_ids):
-        # filter data for current block
-        block_data = df[df['block_id'] == block_id]
-        
-        # create boxplot
-        sns.boxplot(data=block_data, x='speaker_distance', y='mean_led_distance', hue='cond_id', palette='tab10', ax=axes[i])
-        
-    plt.tight_layout()
+    # map data to the grid
+    g.map_dataframe(sns.boxplot, x=x, y=y)
+    
+    # layout
+    g.tight_layout()
     plt.show()
     
-
+    # # prepare figure size and grid
+    # fig, axes = plt.subplots(2, 2)
+    # axes = axes.flatten()
+    
+    # # loop through block_ids
+    # for i, block_id in enumerate(block_ids):
+    #     # filter data for current block
+    #     block_data = df[df['block_id'] == block_id]
+        
+    #     # create boxplot
+    #     sns.boxplot(data=block_data, x=x, y=y, hue='cond_id', palette='tab10', ax=axes[i])
+        
+    # plt.tight_layout()
+    # plt.show()
+    
+def plot_with_error_bars(df, x, y, yerr, col, row):
+    
+    # create FacetGrit
+    g = sns.FacetGrid(df, col=col, row=row, palette='tab10')
+    
+    # map data to the grid
+    g.map_dataframe(sns.lineplot, x=x, y=y, marker='o')
+    
+    for ax, (_, sub_df) in zip(g.axes.flat, g.facet_data()):
+        # add error bars
+        ax.errorbar(sub_df[x], sub_df[y], yerr=sub_df[yerr], fmt='none', color='black', capsize=4)
+        
+        # add 1:1 line
+        ax.plot([2, 12], [2, 12], ls='--', color='grey', label='1:1 Line')
+        
+        # set equal aspect
+        ax.set_aspect('equal', adjustable='box')
+        
+    # layout
+    g.tight_layout()
+    plt.show()
+    
 # TODO: plot signed error distribution
 
 # TODO: plot mean data with standarderror    

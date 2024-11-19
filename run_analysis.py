@@ -18,10 +18,13 @@ df['speaker_distance'] = df['speaker_id'].apply(lambda x: analysis.get_speaker_d
 # filter for specific cond_ids and block_ids
 df = df[df['cond_id'].isin(cond_ids) & df['block_id'].isin(block_ids)]
 
+# TODO: remove first trial of each block + remove trials with less than 300 ms response time and more than 15(?) seconds
+
 # calculate mean led_distance responses and convert speaker_id to categorical values
 means_df = (
     df.groupby(['sub_id', 'cond_id', 'block_id', 'speaker_distance'], as_index=False)
-    .agg(mean_led_distance=('led_distance', 'mean'))
+    .agg(mean_led_distance=('led_distance', 'mean'),
+         std_led_distance=('led_distance', 'std'))
     .assign(speaker_distance=lambda x: pd.Categorical(
         x['speaker_distance'].astype(int), 
         categories=sorted(x['speaker_distance'].unique().astype(int)), 
@@ -55,12 +58,12 @@ analysis.plot_data(df=df, x='speaker_distance', y='led_distance',
 analysis.plot_data(df=means_df, x='speaker_distance', y='mean_led_distance',
                    col='block_id', row='cond_id', hue='sub_id', kind='lineplot')
 
-# %% plot mean_of_means with standarddeviation
-analysis.plot_data(df=mean_of_means_df, x='speaker_distance', y='mean_mean_led_distance',
-                   col='block_id', row=None, hue='cond_id', kind='lineplot')
+# %% plot with error bars
+analysis.plot_with_error_bars(df=mean_of_means_df, x='speaker_distance', y='mean_mean_led_distance', 
+                              yerr='std_mean_led_distance', col='block_id', row='cond_id')
 
 # %% plot boxplot of mean results
-analysis.plot_boxplot(df=means_df, block_ids=block_ids)
+analysis.plot_boxplot(df=df, x='speaker_distance', y='led_distance', col='block_id', hue='cond_id')
 
  # %% fitting mean results of each sub_id
 # analysis.plot_data(df=means_df, x='speaker_distance', y='mean_led_distance',
@@ -91,5 +94,5 @@ analysis.plot_boxplot(df=means_df, block_ids=block_ids)
 analysis.predict_sample_size(effect_size=1.501, alpha=0.05, power=0.8, alternative='two-sided')
 
 # %% diagnostic plots
-# analysis.create_diagnostic_plots(sub_id=sub_id, cond_id=cond_id, block_id=4)
+# analysis.create_diagnostic_plots(df=df, x='speaker_distance', y='led_distance')
 
