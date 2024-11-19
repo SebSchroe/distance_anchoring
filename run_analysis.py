@@ -63,7 +63,7 @@ analysis.plot_with_error_bars(df=mean_of_means_df, x='speaker_distance', y='mean
                               yerr='std_mean_led_distance', col='block_id', row='cond_id')
 
 # %% plot boxplot of mean results
-analysis.plot_boxplot(df=df, x='speaker_distance', y='led_distance', col='block_id', hue='cond_id')
+analysis.plot_boxplot(df=means_df, x='speaker_distance', y='mean_led_distance', col='block_id', hue='cond_id')
 
  # %% fitting mean results of each sub_id
 # analysis.plot_data(df=means_df, x='speaker_distance', y='mean_led_distance',

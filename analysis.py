@@ -37,24 +37,6 @@ def predict_sample_size(effect_size, alpha=0.05, power=0.8, alternative='two-sid
     
     print(f'Predicted sample size per condition: {sample_size}')
 
-# linear regression diagnostics
-def create_diagnostic_plots(df, x, y):
-    '''
-    1. .residual_plot() -> Residuals vs Fittes values: checks if relationship between x and y is linear (linearity)
-    2. .qq_plot() -> Normal Q-Q: checks if errors/residuals are normally distibuted (normality)
-    3. .scale_location_plt() -> Scale-location: checks if the residual-variance is the same for every value of x (homoskedasticity)
-    4. .leverage_plot() -> Residuals vs Leverage: checks if observations are independent of each other (outliers)
-    '''
-    
-    # fitting linear model
-    model = smf.ols(formula=f'{y} ~ {x}', data=df).fit() # formula = y ~ x
-    print(model.summary())
-    
-    # generate diagnostic plots
-    cls = LinearRegDiagnostic.LinearRegDiagnostic(model)
-    vif, fig, ax = cls()
-    print(vif)
-
 def plot_data(df, x, y, col, row, hue, kind='scatterplot', baseline=True):
     
     # data plotting
@@ -78,34 +60,7 @@ def plot_data(df, x, y, col, row, hue, kind='scatterplot', baseline=True):
             ax.plot([2, 12], [2, 12], ls='--', color='grey', label='1:1 Line')
     
     plt.show()
-    
-def plot_boxplot(df, x, y, col, hue):
-    
-    # create FacetGrit
-    g = sns.FacetGrid(df, col=col, hue=hue, palette='tab10')
-    
-    # map data to the grid
-    g.map_dataframe(sns.boxplot, x=x, y=y)
-    
-    # layout
-    g.tight_layout()
-    plt.show()
-    
-    # # prepare figure size and grid
-    # fig, axes = plt.subplots(2, 2)
-    # axes = axes.flatten()
-    
-    # # loop through block_ids
-    # for i, block_id in enumerate(block_ids):
-    #     # filter data for current block
-    #     block_data = df[df['block_id'] == block_id]
-        
-    #     # create boxplot
-    #     sns.boxplot(data=block_data, x=x, y=y, hue='cond_id', palette='tab10', ax=axes[i])
-        
-    # plt.tight_layout()
-    # plt.show()
-    
+
 def plot_with_error_bars(df, x, y, yerr, col, row):
     
     # create FacetGrit
@@ -128,9 +83,45 @@ def plot_with_error_bars(df, x, y, yerr, col, row):
     g.tight_layout()
     plt.show()
     
-# TODO: plot signed error distribution
+def plot_boxplot(df, x, y, col, hue):
+    
+    # create FacetGrit
+    g = sns.FacetGrid(df, col=col, col_wrap=2)
+    
+    # # map data to the grid
+    g.map_dataframe(sns.boxplot, x=x, y=y, hue=hue, dodge=True, palette='tab10')
 
-# TODO: plot mean data with standarderror    
+    # adjust layout
+    for ax in g.axes.flat:
+        # Add 1:1 line
+        ax.plot([0, 10], [2, 12], ls='--', color='grey', label='1:1 Line')
+
+        # Set equal aspect ratio
+        ax.set_aspect('equal', adjustable='box')
+    
+    g.add_legend()
+    g.tight_layout()
+    plt.show()
+    
+# TODO: plot signed error distribution  
+
+# linear regression diagnostics
+def create_diagnostic_plots(df, x, y):
+    '''
+    1. .residual_plot() -> Residuals vs Fittes values: checks if relationship between x and y is linear (linearity)
+    2. .qq_plot() -> Normal Q-Q: checks if errors/residuals are normally distibuted (normality)
+    3. .scale_location_plt() -> Scale-location: checks if the residual-variance is the same for every value of x (homoskedasticity)
+    4. .leverage_plot() -> Residuals vs Leverage: checks if observations are independent of each other (outliers)
+    '''
+    
+    # fitting linear model
+    model = smf.ols(formula=f'{y} ~ {x}', data=df).fit() # formula = y ~ x
+    print(model.summary())
+    
+    # generate diagnostic plots
+    cls = LinearRegDiagnostic.LinearRegDiagnostic(model)
+    vif, fig, ax = cls()
+    print(vif)
 
 # help functions
 def get_concat_df(sub_ids):
@@ -171,25 +162,3 @@ def calc_experiment_duration(n_reps, mean_response_time):
 
 def get_speaker_distance(key, speaker_dict):
     return speaker_dict.get(key, None)
-    
-def get_task_id(cond_id, block_id):
-        if cond_id == 1:
-            if block_id in [1, 2, 3, 5]:
-                task_id = 1
-            elif block_id == 4:
-                task_id = 2
-            elif block_id == 6:
-                task_id = 3
-            else:
-                print('block_id can only be 1 to 6')
-
-        elif cond_id == 2:
-            if block_id in [1, 2, 3, 4, 5]:
-                task_id = 2
-            elif block_id == 6:
-                task_id = 1
-            else:
-                print('block_id can only be 1 to 6')
-        else:
-            print('cond_id can only be 1 or 2')
-        return task_id
