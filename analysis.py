@@ -1,16 +1,11 @@
 import pathlib
 import os
-import re
 import LinearRegDiagnostic
 import seaborn as sns
 import pandas as pd
 import matplotlib.pyplot as plt
-import numpy as np
-import statsmodels.api as sm
 import statsmodels.formula.api as smf
 import statsmodels.stats.power as smp
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import r2_score
 
 DIR = pathlib.Path(os.curdir)
 speaker_dict = {0: 2.00,
@@ -55,10 +50,14 @@ def plot_data(df, x, y, col, row, hue, kind='scatterplot', baseline=True):
     for ax in g.axes.flat:
         ax.set_aspect('equal', adjustable='box')
         
-        if baseline:
+        if baseline == 'one_one':
             # add 1:1 line through the origin
-            ax.plot([2, 12], [2, 12], ls='--', color='grey', label='1:1 Line')
-    
+            ax.plot([2, 12], [2, 12], ls='--', color='grey', label='1:1 Line') # add 1:1 line through the origin
+        elif baseline == 'zero':
+            ax.plot([2, 12], [0, 0], ls='--', color='grey', label='zero line') # add baseline at y = 0
+        else:
+            continue
+        
     plt.show()
 
 def plot_with_error_bars(df, x, y, yerr, col, row):
@@ -143,7 +142,11 @@ def get_concat_df(sub_ids):
                 print(f"File not found: {file_path}")
             except pd.errors.EmptyDataError:
                 print(f"Empty file: {file_path}")
-                
+    
+    # get number of sub_ids per condition
+    print('n cond_1:', sum(int(sub_id) % 2 != 0 for sub_id in sub_ids))
+    print('n cond_2:', sum(int(sub_id) % 2 == 0 for sub_id in sub_ids))
+         
     return concat_df
 
 def calc_experiment_duration(n_reps, mean_response_time):
