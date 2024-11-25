@@ -1,6 +1,7 @@
 import pathlib
 import os
 import LinearRegDiagnostic
+import numpy as np
 import seaborn as sns
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -20,12 +21,20 @@ speaker_dict = {0: 2.00,
                 9: 11.00,
                 10: 12.00}
 
-# analysation of statistical power (predict sample size)
-def predict_sample_size(effect_size, alpha=0.05, power=0.8, alternative='two-sided'):
+# statistical power analysis
+def calculate_cohens_d(mean_1, std_1, n_1, mean_2, std_2, n_2):    
+    pooled_std = np.sqrt(((n_1 - 1) * std_1 ** 2 + (n_2 - 1) * std_2 ** 2) / (n_1 + n_2 - 2))
+    d = (mean_1 - mean_2) / pooled_std
+    return d
+
+def predict_sample_size(group_1, group_2, alpha=0.05, power=0.8, alternative='two-sided'):
     '''
-    effect_size = Cohen's d
-    # alternative = two-sided', 'larger' or 'smaller'
+    alternative = two-sided', 'larger' or 'smaller'
     '''
+    mean_1, std_1, n_1 = group_1
+    mean_2, std_2, n_2 = group_2
+    
+    effect_size = calculate_cohens_d(mean_1, std_1, n_1, mean_2, std_2, n_2)
     
     analysis = smp.TTestIndPower()
     sample_size = analysis.solve_power(effect_size=effect_size, alpha=alpha, power=power, alternative=alternative)

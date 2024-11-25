@@ -18,7 +18,8 @@ df = analysis.get_concat_df(sub_ids=sub_ids)
 # filter for specific cond_ids and block_ids
 df = df[df['cond_id'].isin(cond_ids) & df['block_id'].isin(block_ids)]
 
-# TODO: remove first trial of each block + remove trials with less than 300 ms response time and more than 15(?) seconds
+# remove all trials with less than 300 ms response time # TODO: and more than 15(?) seconds
+df = df[df['response_time'] > 0.3]
 
 # data tansformation and calculation of new paramter
 df['stim_id'] = df['stim_id'].str.strip() # convert values of stim_id to same form
@@ -77,13 +78,14 @@ analysis.plot_boxplot(df=means_df, x='speaker_distance', y='mean_led_distance', 
 # %% plot MSE
 analysis.plot_data(df=means_df, x='speaker_distance', y='MSE', 
                    col='block_id', row='cond_id', hue='sub_id', kind='lineplot', baseline='zero')
- # %% fitting mean results of each sub_id
+
+# %% fitting mean results of each sub_id
 # analysis.plot_data(df=means_df, x='speaker_distance', y='mean_led_distance',
 #                    col='block_id', row='cond_id', hue='sub_id', kind='regplot')
 
 # %% predict sample size
 # TODO: make sample size prediction more 
-analysis.predict_sample_size(effect_size=1.159, alpha=0.05, power=0.8, alternative='two-sided')
+analysis.predict_sample_size(group_1=[8.62, 1.40, 10], group_2=[9.92, 0.815, 12], alpha=0.05, power=0.8, alternative='two-sided')
 
 # %% diagnostic plots
 # TODO: filter df for specific block and specific cond
