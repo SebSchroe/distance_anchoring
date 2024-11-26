@@ -86,8 +86,7 @@ analysis.plot_data(df=means_df, x='speaker_distance', y='MSE',
 #                    col='block_id', row='cond_id', hue='sub_id', kind='regplot')
 
 # %% predict sample size
-# TODO: make sample size prediction more
-analysis.predict_sample_size(group_1=[9.22, 1.69, 10], group_2=[10.64, 0.722, 13], alpha=0.05, power=0.8, alternative='two-sided')
+analysis.predict_sample_size(group_1=[9.31, 1.64, 11], group_2=[10.67, 0.70, 14], alpha=0.05, power=0.8, alternative='two-sided')
 
 # %% diagnostic plots
 # TODO: filter df for specific block and specific cond

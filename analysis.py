@@ -21,26 +21,6 @@ speaker_dict = {0: 2.00,
                 9: 11.00,
                 10: 12.00}
 
-# statistical power analysis
-def calculate_cohens_d(mean_1, std_1, n_1, mean_2, std_2, n_2):    
-    pooled_std = np.sqrt(((n_1 - 1) * std_1 ** 2 + (n_2 - 1) * std_2 ** 2) / (n_1 + n_2 - 2))
-    d = (mean_1 - mean_2) / pooled_std
-    return d
-
-def predict_sample_size(group_1, group_2, alpha=0.05, power=0.8, alternative='two-sided'):
-    '''
-    alternative = two-sided', 'larger' or 'smaller'
-    '''
-    mean_1, std_1, n_1 = group_1
-    mean_2, std_2, n_2 = group_2
-    
-    effect_size = calculate_cohens_d(mean_1, std_1, n_1, mean_2, std_2, n_2)
-    
-    analysis = smp.TTestIndPower()
-    sample_size = analysis.solve_power(effect_size=effect_size, alpha=alpha, power=power, alternative=alternative)
-    
-    print(f'Predicted sample size per condition: {sample_size}')
-
 def plot_data(df, x, y, col, row, hue, kind='scatterplot', baseline=True):
     
     # data plotting
@@ -109,9 +89,27 @@ def plot_boxplot(df, x, y, col, hue):
     
     g.add_legend()
     g.tight_layout()
-    plt.show()
+    plt.show() 
+
+# statistical power analysis
+def calculate_cohens_d(mean_1, std_1, n_1, mean_2, std_2, n_2):    
+    pooled_std = np.sqrt(((n_1 - 1) * std_1 ** 2 + (n_2 - 1) * std_2 ** 2) / (n_1 + n_2 - 2))
+    d = (mean_1 - mean_2) / pooled_std
+    return d
+
+def predict_sample_size(group_1, group_2, alpha=0.05, power=0.8, alternative='two-sided'):
+    '''
+    alternative = two-sided', 'larger' or 'smaller'
+    '''
+    mean_1, std_1, n_1 = group_1
+    mean_2, std_2, n_2 = group_2
     
-# TODO: plot signed error distribution  
+    effect_size = calculate_cohens_d(mean_1, std_1, n_1, mean_2, std_2, n_2)
+    
+    analysis = smp.TTestIndPower()
+    sample_size = analysis.solve_power(effect_size=effect_size, alpha=alpha, power=power, alternative=alternative)
+    
+    print(f'Predicted sample size per condition: {sample_size}')
 
 # linear regression diagnostics
 def create_diagnostic_plots(df, x, y):
