@@ -5,6 +5,8 @@ import math
 import pandas as pd
 from analysis import speaker_dict
 
+#TODO: response time per trial
+#TODO: signed error depending on distance difference to previous stimulus
 
 # set global variables
 sub_ids = ['01', '03', '05', '09', '13', '15', '17', '19', '21', '25',
@@ -36,8 +38,8 @@ means_df = (
          MSE=('signed_error', 'mean'),
          MAE=('absolute_error', 'mean'))
     .assign(speaker_distance=lambda x: pd.Categorical(
-        x['speaker_distance'].astype(int), 
-        categories=sorted(x['speaker_distance'].unique().astype(int)), 
+        x['speaker_distance'].astype(int),
+        categories=sorted(x['speaker_distance'].unique().astype(int)),
         ordered=True
     ))
 )
@@ -59,8 +61,8 @@ for i in range(num_plots):
     temp_df = df[df['sub_id'].isin(current_sub_ids)]
     analysis.plot_data(df=temp_df, x='speaker_distance', y='led_distance',
                        col='block_id', row='sub_id', hue='cond_id', kind='scatterplot', baseline='one_one')
-    
-# %% plot all datapoints per cond_id and block_id 
+
+# %% plot all datapoints per cond_id and block_id
 analysis.plot_data(df=df, x='speaker_distance', y='led_distance',
                    col='block_id', row='cond_id', hue='sub_id', kind='scatterplot', baseline='one_one')
 
@@ -69,14 +71,14 @@ analysis.plot_data(df=means_df, x='speaker_distance', y='mean_led_distance',
                    col='block_id', row='cond_id', hue='sub_id', kind='lineplot', baseline='one_one')
 
 # %% plot with error bars
-analysis.plot_with_error_bars(df=mean_of_means_df, x='speaker_distance', y='mean_mean_led_distance', 
+analysis.plot_with_error_bars(df=mean_of_means_df, x='speaker_distance', y='mean_mean_led_distance',
                               yerr='std_mean_led_distance', col='block_id', row='cond_id')
 
 # %% plot boxplot of mean results
 analysis.plot_boxplot(df=means_df, x='speaker_distance', y='mean_led_distance', col='block_id', hue='cond_id')
 
 # %% plot MSE
-analysis.plot_data(df=means_df, x='speaker_distance', y='MSE', 
+analysis.plot_data(df=means_df, x='speaker_distance', y='MSE',
                    col='block_id', row='cond_id', hue='sub_id', kind='lineplot', baseline='zero')
 
 # %% fitting mean results of each sub_id
@@ -84,11 +86,10 @@ analysis.plot_data(df=means_df, x='speaker_distance', y='MSE',
 #                    col='block_id', row='cond_id', hue='sub_id', kind='regplot')
 
 # %% predict sample size
-# TODO: make sample size prediction more 
-analysis.predict_sample_size(group_1=[8.62, 1.40, 10], group_2=[9.92, 0.815, 12], alpha=0.05, power=0.8, alternative='two-sided')
+# TODO: make sample size prediction more
+analysis.predict_sample_size(group_1=[9.22, 1.69, 10], group_2=[10.64, 0.722, 13], alpha=0.05, power=0.8, alternative='two-sided')
 
 # %% diagnostic plots
 # TODO: filter df for specific block and specific cond
 diagnostic_df = means_df[(means_df['cond_id'] == 2) & (means_df['block_id'] == 1)]
 analysis.create_diagnostic_plots(df=diagnostic_df, x='speaker_distance', y='mean_led_distance')
-
