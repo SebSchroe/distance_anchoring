@@ -7,8 +7,8 @@ from analysis import speaker_dict
 
 
 # set global variables
-sub_ids = ['01', '03', '05', '09', '13', '15', '17', '19', '21', '25',
-           '02', '04', '06', '08', '10', '12', '14', '16', '18', '20', '22', '24', '26']
+sub_ids = ['01', '03', '05', '07', '09', '13', '15', '17', '19', '21', '25',
+           '02', '04', '06', '08', '10', '12', '14', '16', '18', '20', '22', '24', '26', '28']
 cond_ids = [1, 2]
 block_ids = [1, 2, 4, 6]
 
@@ -21,7 +21,7 @@ df = df[df['cond_id'].isin(cond_ids) & df['block_id'].isin(block_ids)]
 # remove all trials with less than 300 ms response time # TODO: and more than 15(?) seconds
 df = df[df['response_time'] > 0.3]
 
-# data tansformation and calculation of new paramter
+# data transformation and calculation of new parameter
 df['stim_id'] = df['stim_id'].str.strip() # convert values of stim_id to same form
 df['speaker_distance'] = df['speaker_id'].apply(lambda x: analysis.get_speaker_distance(x, speaker_dict)) # convert speaker_id in  actual distance
 df['signed_error'] = df['led_distance'] - df['speaker_distance'] # calculate signed error
