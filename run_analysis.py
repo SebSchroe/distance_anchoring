@@ -16,6 +16,7 @@ block_ids = [1, 2, 4, 6]
 
 # load all data
 df = analysis.get_concat_df(sub_ids=sub_ids)
+questionair_df = analysis.get_questionair_df()
 
 # filter for specific cond_ids and block_ids
 df = df[df['cond_id'].isin(cond_ids) & df['block_id'].isin(block_ids)]

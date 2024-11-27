@@ -156,6 +156,13 @@ def get_concat_df(sub_ids):
          
     return concat_df
 
+def get_questionair_df():
+    
+    file_path = DIR / 'results' / 'questionair_results.csv'
+    df = pd.read_csv(file_path, sep=';')
+    df['sub_id'] = df['sub_id'].str.replace('sub-', '').astype(int)
+    return df
+
 def calc_experiment_duration(n_reps, mean_response_time):
     n_reps = n_reps
     n_speaker = [5, 11]
