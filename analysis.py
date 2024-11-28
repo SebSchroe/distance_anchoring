@@ -6,7 +6,10 @@ import seaborn as sns
 import pandas as pd
 import matplotlib.pyplot as plt
 import statsmodels.formula.api as smf
+import statsmodels.api as sm
 import statsmodels.stats.power as smp
+from scipy.stats import norm
+from scipy.stats import shapiro, kstest
 
 DIR = pathlib.Path(os.curdir)
 speaker_dict = {0: 2.00,
@@ -29,7 +32,7 @@ def plot_data(df, x, y, col, row, hue, kind='scatterplot', baseline=True):
     if kind == 'scatterplot':
         g.map(sns.scatterplot, x, y).add_legend()
     elif kind == 'lineplot':
-        g.map(sns.lineplot, x, y, marker='o').add_legend()
+        g.map(sns.lineplot, x, y, marker='o', alpha=0.7).add_legend()
     elif kind == 'regplot':
         g.map(sns.regplot, x, y, order=2).add_legend()
     
@@ -94,7 +97,41 @@ def plot_boxplot(df, x, y, col, hue):
 # distributions
 def show_data_distribution(df, x):
     
-    sns.histplot(data=df, x=x, kde=True)
+    # create array of data
+    array = df[x].to_numpy()
+    
+    # prepare multiplot
+    fig,axes = plt.subplots(1, 2)
+        
+    # plot histogram
+    sns.histplot(data=df, x=x, bins=7, kde=True, ax=axes[0])
+    axes[0].set_title('Histogram with KDE')
+    
+    # plot QQ-Plot
+    sm.qqplot(array, line='s', ax=axes[1])
+    axes[1].set_title('QQ-Plot')
+    
+    plt.tight_layout()
+    plt.show()
+    
+    # Shapiro-Wilk Test
+    test_stats, p_value = shapiro(array)
+    print("Result of Shapiro-Wilk Test:")
+    print(f"Statistic: {test_stats:.3f}, p-value: {p_value:.3f}")
+    if p_value < 0.05:
+        print("Reject H0: Data is not Gaussian.")
+    else:
+        print("Fail to reject H0: Data is Gaussian.")
+    
+    # Kolmogorov-Smirnov Test
+    ks_stat, ks_p_value = kstest(array, 'norm', args=(np.mean(array), np.std(array)))
+    print("\nResult of Kolmogorov-Smirnov Test:")
+    print(f"Statistic: {ks_stat:.3f}, p-value: {ks_p_value:.3f}")
+    if ks_p_value < 0.05:
+        print("Reject H0: Data is not Gaussian.")
+    else:
+        print("Fail to reject H0: Data is Gaussian.")
+
 
 # statistical power analysis
 def calculate_cohens_d(mean_1, std_1, n_1, mean_2, std_2, n_2):    

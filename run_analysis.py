@@ -83,8 +83,7 @@ analysis.plot_data(df=means_df, x='speaker_distance', y='MSE',
                    col='block_id', row='cond_id', hue='sub_id', kind='lineplot', baseline='zero')
 
 # %% show data distribution (histogram, qq-plot, shapiro-wilk test and kolmogrov-smirnoff test)
-distribution_df = means_df[(means_df['cond_id'] == 1) & (means_df['block_id'] == 1) & (means_df['speaker_distance'] == 3)]
-array = distribution_df['mean_led_distance'].to_numpy()
+distribution_df = means_df[(means_df['cond_id'] == 1) & (means_df['block_id'] == 6) & (means_df['speaker_distance'] == 12)]
 analysis.show_data_distribution(df=distribution_df, x='mean_led_distance')
 
 # %% fitting mean results of each sub_id
@@ -92,9 +91,8 @@ analysis.show_data_distribution(df=distribution_df, x='mean_led_distance')
 #                    col='block_id', row='cond_id', hue='sub_id', kind='regplot')
 
 # %% predict sample size
-analysis.predict_sample_size(group_1=[9.31, 1.64, 11], group_2=[10.67, 0.70, 14], alpha=0.05, power=0.8, alternative='two-sided')
+analysis.predict_sample_size(group_1=[9.546, 1.612, 13], group_2=[10.670, 0.703, 14], alpha=0.05, power=0.8, alternative='two-sided')
 
 # %% diagnostic plots
-# TODO: filter df for specific block and specific cond
 diagnostic_df = means_df[(means_df['cond_id'] == 2) & (means_df['block_id'] == 1)]
 analysis.create_diagnostic_plots(df=diagnostic_df, x='speaker_distance', y='mean_led_distance')
