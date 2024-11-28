@@ -91,6 +91,11 @@ def plot_boxplot(df, x, y, col, hue):
     g.tight_layout()
     plt.show() 
 
+# distributions
+def show_data_distribution(df, x):
+    
+    sns.histplot(data=df, x=x, kde=True)
+
 # statistical power analysis
 def calculate_cohens_d(mean_1, std_1, n_1, mean_2, std_2, n_2):    
     pooled_std = np.sqrt(((n_1 - 1) * std_1 ** 2 + (n_2 - 1) * std_2 ** 2) / (n_1 + n_2 - 2))

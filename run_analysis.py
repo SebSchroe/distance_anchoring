@@ -82,6 +82,11 @@ analysis.plot_boxplot(df=means_df, x='speaker_distance', y='mean_led_distance', 
 analysis.plot_data(df=means_df, x='speaker_distance', y='MSE',
                    col='block_id', row='cond_id', hue='sub_id', kind='lineplot', baseline='zero')
 
+# %% show data distribution (histogram, qq-plot, shapiro-wilk test and kolmogrov-smirnoff test)
+distribution_df = means_df[(means_df['cond_id'] == 1) & (means_df['block_id'] == 1) & (means_df['speaker_distance'] == 3)]
+array = distribution_df['mean_led_distance'].to_numpy()
+analysis.show_data_distribution(df=distribution_df, x='mean_led_distance')
+
 # %% fitting mean results of each sub_id
 # analysis.plot_data(df=means_df, x='speaker_distance', y='mean_led_distance',
 #                    col='block_id', row='cond_id', hue='sub_id', kind='regplot')
