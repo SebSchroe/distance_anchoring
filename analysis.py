@@ -24,6 +24,40 @@ speaker_dict = {0: 2.00,
                 9: 11.00,
                 10: 12.00}
 
+def plot_raw_data(df, sub_id):
+    
+    # filter df per sub_id
+    sub_id = int(sub_id)
+    filtered_df = df[df['sub_id'] == sub_id]
+    
+    # calculate mean and std data per speaker_distance
+    means_df = (
+        filtered_df
+        .groupby(['block_id', 'speaker_distance'], as_index=False)
+        .agg(
+            mean_led_distance=('led_distance', 'mean'),
+            std_led_distance=('led_distance', 'std')
+            )
+        )
+    
+    # create FacetGrid
+    g = sns.FacetGrid(filtered_df, col='block_id')
+    
+    # scatterplot
+    g.map_dataframe(sns.scatterplot, x='speaker_distance', y='led_distance', color='grey', alpha=0.5)
+    
+    for ax, (block_id, sub_df) in zip(g.axes.flat, means_df.groupby('block_id')):
+        
+        # add lineplot and errorbars
+        ax.errorbar(x=sub_df['speaker_distance'], y=sub_df['mean_led_distance'], yerr=sub_df['std_led_distance'],
+                    fmt='-o', capsize=3)
+        
+        ax.set_aspect('equal', adjustable='box')
+        
+        ax.plot([2, 12], [2, 12], ls='--', color='grey', label='1:1 Line') # add 1:1 line through the origin
+        
+    plt.show()
+
 def plot_data(df, x, y, col, row, hue, kind='scatterplot', baseline=True):
     
     # data plotting

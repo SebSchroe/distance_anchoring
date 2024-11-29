@@ -1,7 +1,6 @@
 # %% prepare data
 # import modules
 import analysis
-import math
 import pandas as pd
 from analysis import speaker_dict
 
@@ -36,8 +35,8 @@ means_df = (
     df.groupby(['sub_id', 'cond_id', 'block_id', 'speaker_distance'], as_index=False)
     .agg(mean_led_distance=('led_distance', 'mean'),
          std_led_distance=('led_distance', 'std'),
-         MSE=('signed_error', 'mean'),
-         MAE=('absolute_error', 'mean'))
+         mean_signed_error=('signed_error', 'mean'),
+         mean_absolute_error=('absolute_error', 'mean'))
     .assign(speaker_distance=lambda x: pd.Categorical(
         x['speaker_distance'].astype(int),
         categories=sorted(x['speaker_distance'].unique().astype(int)),
@@ -54,14 +53,8 @@ mean_of_means_df = (
     .reset_index()
 )
 
-# %% plot individual results per sub_id
-n_sub_ids_per_plot = 5
-num_plots = math.ceil(len(sub_ids) / n_sub_ids_per_plot)
-for i in range(num_plots):
-    current_sub_ids = list(map(int, sub_ids[i * n_sub_ids_per_plot:(i + 1) * n_sub_ids_per_plot]))
-    temp_df = df[df['sub_id'].isin(current_sub_ids)]
-    analysis.plot_data(df=temp_df, x='speaker_distance', y='led_distance',
-                       col='block_id', row='sub_id', hue='cond_id', kind='scatterplot', baseline='one_one')
+# %% plot individual results per participant
+analysis.plot_raw_data(df=df, sub_id='08')
 
 # %% plot all datapoints per cond_id and block_id
 analysis.plot_data(df=df, x='speaker_distance', y='led_distance',
@@ -78,8 +71,8 @@ analysis.plot_with_error_bars(df=mean_of_means_df, x='speaker_distance', y='mean
 # %% plot boxplot of mean results
 analysis.plot_boxplot(df=means_df, x='speaker_distance', y='mean_led_distance', col='block_id', hue='cond_id')
 
-# %% plot MSE
-analysis.plot_data(df=means_df, x='speaker_distance', y='MSE',
+# %% plot mean signed error
+analysis.plot_data(df=means_df, x='speaker_distance', y='mean_absolute_error',
                    col='block_id', row='cond_id', hue='sub_id', kind='lineplot', baseline='zero')
 
 # %% show data distribution (histogram, qq-plot, shapiro-wilk test and kolmogrov-smirnoff test)
@@ -91,7 +84,7 @@ analysis.show_data_distribution(df=distribution_df, x='mean_led_distance')
 #                    col='block_id', row='cond_id', hue='sub_id', kind='regplot')
 
 # %% predict sample size
-analysis.predict_sample_size(group_1=[9.546, 1.612, 13], group_2=[10.670, 0.703, 14], alpha=0.05, power=0.8, alternative='two-sided')
+analysis.predict_sample_size(group_1=[9.559, 1.550, 14], group_2=[10.670, 0.703, 14], alpha=0.05, power=0.8, alternative='two-sided')
 
 # %% diagnostic plots
 diagnostic_df = means_df[(means_df['cond_id'] == 2) & (means_df['block_id'] == 1)]
