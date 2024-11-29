@@ -9,7 +9,7 @@ from analysis import speaker_dict
 #TODO: signed error depending on distance difference to previous stimulus
 
 # set global variables
-sub_ids = ['01', '03', '05', '07', '09', '13', '15', '17', '19', '21', '23', '25', '27',
+sub_ids = ['01', '03', '05', '07', '09', '11', '13', '15', '17', '19', '21', '23', '25', '27',
            '02', '04', '06', '08', '10', '12', '14', '16', '18', '20', '22', '24', '26', '28']
 cond_ids = [1, 2]
 block_ids = [1, 2, 4, 6]
