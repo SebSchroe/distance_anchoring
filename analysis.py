@@ -72,7 +72,7 @@ def plot_and_save_data_per_sub(df, sub_id):
     plt.savefig(save_path)
     print(f"Plot for sub_{sub_id} was saved unter {save_path}")
     
-    plt.close()
+    plt.show()
 
 def plot_data(df, x, y, col, row, hue, kind="scatterplot", baseline=False):
     

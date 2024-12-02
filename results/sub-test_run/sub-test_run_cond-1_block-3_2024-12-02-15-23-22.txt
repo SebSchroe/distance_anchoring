@@ -1,0 +1,12 @@
+sub_id,cond_id,block_id,task_id,event_id,stim_id,speaker_id,led_id,led_distance,response_time,n_reps,isi
+test_run,	1,	3,	1,	1,	uso_300ms_39.wav,	0,	118.62750800000009,	2.05,	nan,	11,	2
+test_run,	1,	3,	1,	2,	uso_300ms_82.wav,	1,	152.49254900000003,	3.18,	nan,	11,	2
+test_run,	1,	3,	1,	3,	uso_300ms_90.wav,	2,	178.19320999999968,	4.04,	nan,	11,	2
+test_run,	1,	3,	1,	4,	uso_300ms_74.wav,	3,	205.73748899999978,	4.96,	nan,	11,	2
+test_run,	1,	3,	1,	5,	uso_300ms_74.wav,	4,	235.69527699999952,	5.96,	nan,	11,	2
+test_run,	1,	3,	1,	6,	uso_300ms_24.wav,	5,	267.4394579999994,	7.01,	nan,	11,	2
+test_run,	1,	3,	1,	7,	uso_300ms_57.wav,	6,	301.9582009999997,	8.17,	nan,	11,	2
+test_run,	1,	3,	1,	8,	uso_300ms_5.wav,	7,	330.48302599999977,	9.12,	nan,	11,	2
+test_run,	1,	3,	1,	9,	uso_300ms_46.wav,	8,	369.7288619999998,	10.42,	nan,	11,	2
+test_run,	1,	3,	1,	10,	uso_300ms_10.wav,	9,	394.72338400000007,	11.26,	nan,	11,	2
+test_run,	1,	3,	1,	11,	uso_300ms_89.wav,	10,	433.54307400000044,	12.55,	nan,	11,	2
