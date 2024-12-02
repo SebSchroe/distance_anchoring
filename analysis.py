@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import statsmodels.formula.api as smf
 import statsmodels.api as sm
 import statsmodels.stats.power as smp
-from scipy.stats import norm
 from scipy.stats import shapiro, kstest
 
 DIR = pathlib.Path(os.curdir)
@@ -24,108 +23,133 @@ speaker_dict = {0: 2.00,
                 9: 11.00,
                 10: 12.00}
 
-def plot_raw_data(df, sub_id):
+def plot_and_save_data_per_sub(df, sub_id):
     
     # filter df per sub_id
-    sub_id = int(sub_id)
-    filtered_df = df[df['sub_id'] == sub_id]
+    sub_id_int = int(sub_id)
+    filtered_df = df[df["sub_id"] == sub_id_int]
     
     # calculate mean and std data per speaker_distance
     means_df = (
         filtered_df
-        .groupby(['block_id', 'speaker_distance'], as_index=False)
+        .groupby(["block_id", "speaker_distance"], as_index=False)
         .agg(
-            mean_led_distance=('led_distance', 'mean'),
-            std_led_distance=('led_distance', 'std')
+            mean_led_distance=("led_distance", "mean"),
+            std_led_distance=("led_distance", "std")
             )
         )
     
     # create FacetGrid
-    g = sns.FacetGrid(filtered_df, col='block_id')
+    g = sns.FacetGrid(filtered_df, col="block_id")
     
     # scatterplot
-    g.map_dataframe(sns.scatterplot, x='speaker_distance', y='led_distance', color='grey', alpha=0.5)
+    g.map_dataframe(sns.scatterplot, x="speaker_distance", y="led_distance", color="grey", alpha=0.5, label="Data points")
     
-    for ax, (block_id, sub_df) in zip(g.axes.flat, means_df.groupby('block_id')):
+    for ax, (block_id, sub_df) in zip(g.axes.flat, means_df.groupby("block_id")):
         
         # add lineplot and errorbars
-        ax.errorbar(x=sub_df['speaker_distance'], y=sub_df['mean_led_distance'], yerr=sub_df['std_led_distance'],
-                    fmt='-o', capsize=3)
+        ax.errorbar(x=sub_df["speaker_distance"], y=sub_df["mean_led_distance"], yerr=sub_df["std_led_distance"],
+                    fmt="-o", markersize=5, capsize=4, label="Mean ± Std")
         
-        ax.set_aspect('equal', adjustable='box')
+        ax.set_aspect("equal", adjustable="box")
         
-        ax.plot([2, 12], [2, 12], ls='--', color='grey', label='1:1 Line') # add 1:1 line through the origin
-        
-    plt.show()
+        ax.plot([2, 12], [2, 12], ls="--", color="grey", label="1:1 Line") # add 1:1 line through the origin
+    
+    # get labels for legend
+    handles, labels = g.axes.flat[0].get_legend_handles_labels()
+    
+    # adjust layout    
+    g.fig.legend(handles, labels, title="Legend", loc="center right")
+    g.fig.suptitle(f"Results of sub-{sub_id}")
+    plt.subplots_adjust(right=0.9, top=0.8)
+    
+    # save plots
+    if sub_id_int % 2 == 1:
+        cond_id = 1
+    else:
+        cond_id = 2
+    save_path = DIR / "analysis" / "individual_results" / f"cond-{cond_id}" / f"sub-{sub_id}_plots.png"
+    plt.savefig(save_path)
+    print(f"Plot for sub_{sub_id} was saved unter {save_path}")
+    
+    plt.close()
 
-def plot_data(df, x, y, col, row, hue, kind='scatterplot', baseline=True):
+def plot_data(df, x, y, col, row, hue, kind="scatterplot", baseline=False):
     
     # data plotting
-    g = sns.FacetGrid(df, col=col, row=row, hue=hue, palette='tab10')
+    g = sns.FacetGrid(df, col=col, row=row, hue=hue, palette="tab10")
     
-    if kind == 'scatterplot':
-        g.map(sns.scatterplot, x, y).add_legend()
-    elif kind == 'lineplot':
-        g.map(sns.lineplot, x, y, marker='o', alpha=0.7).add_legend()
-    elif kind == 'regplot':
+    if kind == "scatterplot":
+        g.map(sns.scatterplot, x, y, alpha=0.5).add_legend()
+    elif kind == "lineplot":
+        g.map(sns.lineplot, x, y, marker="o", alpha=0.5).add_legend()
+    elif kind == "regplot":
         g.map(sns.regplot, x, y, order=2).add_legend()
     
-    g.add_legend(bbox_to_anchor=(1.05, 0.5), loc='center left', borderaxespad=0)
+    g.add_legend(bbox_to_anchor=(1.05, 0.5), loc="center left", borderaxespad=0)
     
     # adjust layout
     for ax in g.axes.flat:
-        ax.set_aspect('equal', adjustable='box')
+        ax.set_aspect("equal", adjustable="box")
         
-        if baseline == 'one_one':
+        if baseline == "one_one":
             # add 1:1 line through the origin
-            ax.plot([2, 12], [2, 12], ls='--', color='grey', label='1:1 Line') # add 1:1 line through the origin
-        elif baseline == 'zero':
-            ax.plot([2, 12], [0, 0], ls='--', color='grey', label='zero line') # add baseline at y = 0
+            ax.plot([2, 12], [2, 12], ls="--", color="grey", label="1:1 Line") # add 1:1 line through the origin
+        elif baseline == "zero":
+            ax.plot([2, 12], [0, 0], ls="--", color="grey", label="zero line") # add baseline at y = 0
         else:
-            continue
+            continue # no baseline
         
     plt.show()
 
-def plot_with_error_bars(df, x, y, yerr, col, row):
+def plot_with_error_bars(df, x, y, yerr, col, row, baseline=False):
     
     # create FacetGrit
-    g = sns.FacetGrid(df, col=col, row=row, palette='tab10')
+    g = sns.FacetGrid(df, col=col, row=row, palette="tab10")
     
     # map data to the grid
-    g.map_dataframe(sns.lineplot, x=x, y=y, marker='o')
+    g.map_dataframe(sns.lineplot, x=x, y=y, marker="o")
     
     for ax, (_, sub_df) in zip(g.axes.flat, g.facet_data()):
         # add error bars
-        ax.errorbar(sub_df[x], sub_df[y], yerr=sub_df[yerr], fmt='none', color='black', capsize=4)
+        ax.errorbar(sub_df[x], sub_df[y], yerr=sub_df[yerr], fmt="none", color="black", capsize=3)
         
-        # add 1:1 line
-        ax.plot([2, 12], [2, 12], ls='--', color='grey', label='1:1 Line')
+        if baseline == "one_one":
+            ax.plot([2, 12], [2, 12], ls="--", color="grey", label="1:1 Line") # add 1:1 line through the origin
+        elif baseline == "zero":
+            ax.plot([2, 12], [0, 0], ls="--", color="grey", label="zero line") # add baseline at y = 0
+        else:
+            continue # no baseline
         
         # set equal aspect
-        ax.set_aspect('equal', adjustable='box')
+        ax.set_aspect("equal", adjustable="box")
         
     # layout
     g.tight_layout()
     plt.show()
     
-def plot_boxplot(df, x, y, col, hue):
+def plot_boxplot(df, x, y, col, hue, baseline=False):
     
     # create FacetGrit
-    g = sns.FacetGrid(df, col=col, col_wrap=2)
+    g = sns.FacetGrid(df, col=col)
     
     # # map data to the grid
-    g.map_dataframe(sns.boxplot, x=x, y=y, hue=hue, dodge=True, palette='tab10')
+    g.map_dataframe(sns.boxplot, x=x, y=y, hue=hue, dodge=True, palette="tab10")
 
     # adjust layout
     for ax in g.axes.flat:
-        # Add 1:1 line
-        ax.plot([0, 10], [2, 12], ls='--', color='grey', label='1:1 Line')
+        
+        if baseline == "one_one":
+            ax.plot([0, 10], [2, 12], ls="--", color="grey", label="1:1 Line") # add 1:1 line through the origin
+        elif baseline == "zero":
+            ax.plot([0, 10], [0, 0], ls="--", color="grey", label="zero line") # add baseline at y = 0
+        else:
+            continue # no baseline
 
         # Set equal aspect ratio
-        ax.set_aspect('equal', adjustable='box')
+        ax.set_aspect("equal", adjustable="box")
     
-    g.add_legend()
-    g.tight_layout()
+    g.add_legend(title="Condition")
     plt.show() 
 
 # distributions
@@ -139,11 +163,11 @@ def show_data_distribution(df, x):
         
     # plot histogram
     sns.histplot(data=df, x=x, bins=7, kde=True, ax=axes[0])
-    axes[0].set_title('Histogram with KDE')
+    axes[0].set_title("Histogram with KDE")
     
     # plot QQ-Plot
-    sm.qqplot(array, line='s', ax=axes[1])
-    axes[1].set_title('QQ-Plot')
+    sm.qqplot(array, line="s", ax=axes[1])
+    axes[1].set_title("QQ-Plot")
     
     plt.tight_layout()
     plt.show()
@@ -158,7 +182,7 @@ def show_data_distribution(df, x):
         print("Fail to reject H0: Data is Gaussian.")
     
     # Kolmogorov-Smirnov Test
-    ks_stat, ks_p_value = kstest(array, 'norm', args=(np.mean(array), np.std(array)))
+    ks_stat, ks_p_value = kstest(array, "norm", args=(np.mean(array), np.std(array)))
     print("\nResult of Kolmogorov-Smirnov Test:")
     print(f"Statistic: {ks_stat:.3f}, p-value: {ks_p_value:.3f}")
     if ks_p_value < 0.05:
@@ -173,10 +197,10 @@ def calculate_cohens_d(mean_1, std_1, n_1, mean_2, std_2, n_2):
     d = (mean_1 - mean_2) / pooled_std
     return d
 
-def predict_sample_size(group_1, group_2, alpha=0.05, power=0.8, alternative='two-sided'):
-    '''
-    alternative = two-sided', 'larger' or 'smaller'
-    '''
+def predict_sample_size(group_1, group_2, alpha=0.05, power=0.8, alternative="two-sided"):
+    """
+    alternative = two-sided", "larger" or "smaller"
+    """
     mean_1, std_1, n_1 = group_1
     mean_2, std_2, n_2 = group_2
     
@@ -185,19 +209,19 @@ def predict_sample_size(group_1, group_2, alpha=0.05, power=0.8, alternative='tw
     analysis = smp.TTestIndPower()
     sample_size = analysis.solve_power(effect_size=effect_size, alpha=alpha, power=power, alternative=alternative)
     
-    print(f'Predicted sample size per condition: {sample_size}')
+    print(f"Predicted sample size per condition: {sample_size}")
 
 # linear regression diagnostics
 def create_diagnostic_plots(df, x, y):
-    '''
+    """
     1. .residual_plot() -> Residuals vs Fittes values: checks if relationship between x and y is linear (linearity)
     2. .qq_plot() -> Normal Q-Q: checks if errors/residuals are normally distibuted (normality)
     3. .scale_location_plt() -> Scale-location: checks if the residual-variance is the same for every value of x (homoskedasticity)
     4. .leverage_plot() -> Residuals vs Leverage: checks if observations are independent of each other (outliers)
-    '''
+    """
     
     # fitting linear model
-    model = smf.ols(formula=f'{y} ~ {x}', data=df).fit() # formula = y ~ x
+    model = smf.ols(formula=f"{y} ~ {x}", data=df).fit() # formula = y ~ x
     print(model.summary())
     
     # generate diagnostic plots
@@ -213,7 +237,7 @@ def get_concat_df(sub_ids):
     
     # loop through all sub_ids
     for sub_id in sub_ids:
-        sub_dir = DIR / 'results' / f'sub-{sub_id}'
+        sub_dir = DIR / "results" / f"sub-{sub_id}"
         
         # load all containing result files
         for file_path in sub_dir.glob("*.txt"):
@@ -227,17 +251,71 @@ def get_concat_df(sub_ids):
                 print(f"Empty file: {file_path}")
     
     # get number of sub_ids per condition
-    print('n cond_1:', sum(int(sub_id) % 2 != 0 for sub_id in sub_ids))
-    print('n cond_2:', sum(int(sub_id) % 2 == 0 for sub_id in sub_ids))
+    print("n cond_1:", sum(int(sub_id) % 2 != 0 for sub_id in sub_ids))
+    print("n cond_2:", sum(int(sub_id) % 2 == 0 for sub_id in sub_ids))
          
     return concat_df
 
 def get_questionair_df():
     
-    file_path = DIR / 'results' / 'questionair_results.csv'
-    df = pd.read_csv(file_path, sep=';')
-    df['sub_id'] = df['sub_id'].str.replace('sub-', '').astype(int)
+    file_path = DIR / "results" / "questionair_results.csv"
+    df = pd.read_csv(file_path, sep=";")
+    df["sub_id"] = df["sub_id"].str.replace("sub-", "").astype(int)
     return df
+
+def remove_trials(df):
+    
+    rows_pre = len(df)
+    df = df[(df["response_time"] > 0.3) & (df["response_time"] < 15)]
+    rows_post = len(df)
+    removed_rows = rows_pre - rows_post
+    
+    print(f"\nA total of {removed_rows} rows have been removed.")
+    return df
+
+def data_manipulation(df):
+    
+    df["stim_id"] = df["stim_id"].str.strip() # convert values of stim_id to same form
+    
+    df["speaker_distance"] = df["speaker_id"].apply(lambda x: get_speaker_distance(x, speaker_dict)) # convert speaker_id in  actual distance
+    print("\nSpeaker IDs have been converted to speaker distance.")
+    
+    df["signed_error"] = df["led_distance"] - df["speaker_distance"] # calculate signed error
+    df["absolute_error"] = abs(df["signed_error"]) # calculate absolute error
+    print("Signed and absolute error per trial have been calculated")
+
+    return df
+
+def get_means_df(df):
+    
+    means_df = (
+        df.groupby(["sub_id", "cond_id", "block_id", "speaker_distance"], as_index=False)
+        .agg(mean_led_distance=("led_distance", "mean"),
+             std_led_distance=("led_distance", "std"),
+             mean_signed_error=("signed_error", "mean"),
+             mean_absolute_error=("absolute_error", "mean"))
+        .assign(speaker_distance=lambda x: pd.Categorical(
+            x["speaker_distance"].astype(int),
+            categories=sorted(x["speaker_distance"].unique().astype(int)),
+            ordered=True
+        ))
+    )
+    return means_df
+
+def get_mean_of_means_df(means_df):
+    
+    mean_of_means_df = (
+        means_df.groupby(["cond_id", "block_id", "speaker_distance"])
+        .agg(mean_mean_led_distance=("mean_led_distance", "mean"),
+             std_mean_led_distance=("mean_led_distance", "std"),
+             mean_mean_signed_error=("mean_signed_error", "mean"),
+             std_mean_signed_error=("mean_signed_error", "std"),
+             mean_mean_absolute_error=("mean_absolute_error", "mean"),
+             std_mean_absolute_error=("mean_absolute_error", "std"),
+             )
+        .reset_index()
+    )
+    return mean_of_means_df
 
 def calc_experiment_duration(n_reps, mean_response_time):
     n_reps = n_reps
