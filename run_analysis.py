@@ -3,7 +3,7 @@
 import analysis
 
 # set global variables
-sub_ids = ["01", "03", "05", "07", "09", "11", "13", "15", "17", "19", "21", "23", "25", "27", "29"
+sub_ids = ["01", "03", "05", "07", "09", "11", "13", "15", "17", "19", "21", "23", "25", "27", "29",
            "02", "04", "06", "08", "10", "12", "14", "16", "18", "20", "22", "24", "26", "28", "30"]
 cond_ids = [1, 2]
 block_ids = [1, 2, 4, 6]
@@ -63,7 +63,7 @@ analysis.plot_with_error_bars(df=mean_of_means_df, x="speaker_distance", y="mean
 analysis.plot_boxplot(df=means_df, x="speaker_distance", y="mean_signed_error", col="block_id", hue="cond_id", baseline="zero")
 
 # %% show data distribution (histogram, qq-plot, shapiro-wilk test and kolmogrov-smirnoff test)
-distribution_df = means_df[(means_df["cond_id"] == 1) & (means_df["block_id"] == 6) & (means_df["speaker_distance"] == 12)]
+distribution_df = means_df[(means_df["cond_id"] == 2) & (means_df["block_id"] == 6) & (means_df["speaker_distance"] == 11)]
 analysis.show_data_distribution(df=distribution_df, x="mean_led_distance")
 
 # %% fitting mean results of each sub_id
@@ -71,7 +71,7 @@ analysis.show_data_distribution(df=distribution_df, x="mean_led_distance")
 #                    col="block_id", row="cond_id", hue="sub_id", kind="regplot")
 
 # %% predict sample size
-analysis.predict_sample_size(group_1=[9.559, 1.550, 14], group_2=[10.670, 0.703, 14], alpha=0.05, power=0.8, alternative="two-sided")
+analysis.predict_sample_size(group_1=[9.539, 1.483, 15], group_2=[10.615, 0.710, 15], alpha=0.05, power=0.8, alternative="two-sided")
 
 # %% diagnostic plots
 diagnostic_df = means_df[(means_df["cond_id"] == 2) & (means_df["block_id"] == 1)]
