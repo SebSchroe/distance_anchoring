@@ -10,7 +10,7 @@ block_ids = [1, 2, 4, 6]
 
 # load all data
 df = analysis.get_concat_df(sub_ids=sub_ids)
-questionair_df = analysis.get_questionair_df()
+questionnaire_df = analysis.get_questionnaire_df()
 
 # filter for specific cond_ids and block_ids
 df = df[df["cond_id"].isin(cond_ids) & df["block_id"].isin(block_ids)]
@@ -29,6 +29,9 @@ mean_of_means_df = analysis.get_mean_of_means_df(means_df=means_df)
 
 #TODO: response time per trial
 #TODO: signed error depending on distance difference to previous stimulus
+
+# %% observe questionnaire at its own
+analysis.observe_questionnaire(df=questionnaire_df, x="cond_id", y="q09", hue="gender")
 
 # %% plot individual results per participant
 for sub_id in sub_ids:
@@ -52,15 +55,15 @@ analysis.plot_boxplot(df=means_df, x="speaker_distance", y="mean_led_distance", 
 
 # %% plot averaged estimation errors
 # plot mean signed error of each sub_id per cond_id and block_id
-analysis.plot_data(df=means_df, x="speaker_distance", y="mean_signed_error",
-                   col="block_id", row="cond_id", hue="sub_id", kind="lineplot", baseline="zero")
+analysis.plot_data(df=means_df, x="speaker_distance", y="mean_absolute_error",
+                   col="block_id", row="cond_id", hue="sub_id", kind="lineplot", baseline=None)
 
 # plot mean of mean signed error with errorbar
-analysis.plot_with_error_bars(df=mean_of_means_df, x="speaker_distance", y="mean_mean_signed_error",
-                              yerr="std_mean_signed_error", col="block_id", row="cond_id", baseline="zero")
+analysis.plot_with_error_bars(df=mean_of_means_df, x="speaker_distance", y="mean_mean_absolute_error",
+                              yerr="std_mean_absolute_error", col="block_id", row="cond_id", baseline=None)
 
 # plot boxplot of mean signed error
-analysis.plot_boxplot(df=means_df, x="speaker_distance", y="mean_signed_error", col="block_id", hue="cond_id", baseline="zero")
+analysis.plot_boxplot(df=means_df, x="speaker_distance", y="mean_absolute_error", col="block_id", hue="cond_id", baseline=None)
 
 # %% show data distribution (histogram, qq-plot, shapiro-wilk test and kolmogrov-smirnoff test)
 distribution_df = means_df[(means_df["cond_id"] == 2) & (means_df["block_id"] == 6) & (means_df["speaker_distance"] == 11)]

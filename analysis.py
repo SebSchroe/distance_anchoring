@@ -40,7 +40,7 @@ def plot_and_save_data_per_sub(df, sub_id):
         )
     
     # create FacetGrid
-    g = sns.FacetGrid(filtered_df, col="block_id")
+    g = sns.FacetGrid(filtered_df, col="block_id", height=4.5)
     
     # scatterplot
     g.map_dataframe(sns.scatterplot, x="speaker_distance", y="led_distance", color="grey", alpha=0.5, label="Data points")
@@ -61,7 +61,7 @@ def plot_and_save_data_per_sub(df, sub_id):
     # adjust layout    
     g.fig.legend(handles, labels, title="Legend", loc="center right")
     g.fig.suptitle(f"Results of sub-{sub_id}")
-    plt.subplots_adjust(right=0.9, top=0.8)
+    plt.subplots_adjust(right=0.95, top=0.85)
     
     # save plots
     if sub_id_int % 2 == 1:
@@ -256,12 +256,22 @@ def get_concat_df(sub_ids):
          
     return concat_df
 
-def get_questionair_df():
+def get_questionnaire_df():
     
-    file_path = DIR / "results" / "questionair_results.csv"
+    file_path = DIR / "results" / "questionnaire_results.csv"
     df = pd.read_csv(file_path, sep=";")
     df["sub_id"] = df["sub_id"].str.replace("sub-", "").astype(int)
     return df
+
+def observe_questionnaire(df, x, y, hue):
+    
+    sns.set_palette("tab10")
+    
+    sns.stripplot(data=df, x=x, y=y, hue=hue, dodge=True, color="grey", alpha=0.5, legend=False)
+    
+    sns.violinplot(data=df, x=x, y=y, hue=hue)
+    
+    plt.show()
 
 def remove_trials(df):
     
