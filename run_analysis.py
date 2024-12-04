@@ -35,7 +35,7 @@ analysis.observe_questionnaire(df=questionnaire_df, x="cond_id", y="q09", hue="g
 
 # %% plot individual results per participant
 for sub_id in sub_ids:
-    analysis.plot_and_save_data_per_sub(df=df, sub_id=sub_id)
+    analysis.plot_data_per_sub(df=df, sub_id=sub_id, x="speaker_distance", y="signed_error", baseline="zero", save=True)
 
 # %% plot all datapoints per cond_id and block_id
 analysis.plot_data(df=df, x="speaker_distance", y="led_distance",

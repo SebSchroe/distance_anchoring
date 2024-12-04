@@ -23,7 +23,7 @@ speaker_dict = {0: 2.00,
                 9: 11.00,
                 10: 12.00}
 
-def plot_and_save_data_per_sub(df, sub_id):
+def plot_data_per_sub(df, sub_id, x, y, baseline=False, save=False):
     
     # filter df per sub_id
     sub_id_int = int(sub_id)
@@ -32,10 +32,10 @@ def plot_and_save_data_per_sub(df, sub_id):
     # calculate mean and std data per speaker_distance
     means_df = (
         filtered_df
-        .groupby(["block_id", "speaker_distance"], as_index=False)
+        .groupby(["block_id", x], as_index=False)
         .agg(
-            mean_led_distance=("led_distance", "mean"),
-            std_led_distance=("led_distance", "std")
+            mean_y_value=(y, "mean"),
+            std_y_value=(y, "std")
             )
         )
     
@@ -43,36 +43,44 @@ def plot_and_save_data_per_sub(df, sub_id):
     g = sns.FacetGrid(filtered_df, col="block_id", height=4.5)
     
     # scatterplot
-    g.map_dataframe(sns.scatterplot, x="speaker_distance", y="led_distance", color="grey", alpha=0.5, label="Data points")
+    g.map_dataframe(sns.scatterplot, x=x, y=y, color="grey", alpha=0.5, label="Data points")
     
     for ax, (block_id, sub_df) in zip(g.axes.flat, means_df.groupby("block_id")):
         
         # add lineplot and errorbars
-        ax.errorbar(x=sub_df["speaker_distance"], y=sub_df["mean_led_distance"], yerr=sub_df["std_led_distance"],
+        ax.errorbar(x=sub_df[x], y=sub_df["mean_y_value"], yerr=sub_df["std_y_value"],
                     fmt="-o", markersize=5, capsize=4, label="Mean ± Std")
         
         ax.set_aspect("equal", adjustable="box")
         
-        ax.plot([2, 12], [2, 12], ls="--", color="grey", label="1:1 Line") # add 1:1 line through the origin
+        if baseline == "one_one":
+            # add 1:1 line through the origin
+            ax.plot([2, 12], [2, 12], ls="--", color="grey", label="1:1 Line") # add 1:1 line through the origin
+        elif baseline == "zero":
+            ax.plot([0, 12], [0, 0], ls="--", color="grey", label="zero line") # add baseline at y = 0
+        else:
+            continue # no baseline
     
     # get labels for legend
     handles, labels = g.axes.flat[0].get_legend_handles_labels()
     
     # adjust layout    
     g.fig.legend(handles, labels, title="Legend", loc="center right")
-    g.fig.suptitle(f"Results of sub-{sub_id}")
-    plt.subplots_adjust(right=0.95, top=0.85)
+    g.fig.suptitle(f"{y} per {x} (sub-{sub_id})")
+    plt.subplots_adjust(right=0.92, top=0.85)
     
-    # save plots
-    if sub_id_int % 2 == 1:
-        cond_id = 1
+    if save:
+        # save plots
+        if sub_id_int % 2 == 1:
+            cond_id = 1
+        else:
+            cond_id = 2
+        save_path = DIR / "analysis" / "individual_results" / f"cond-{cond_id}" / f"{y}_per_{x}" / f"sub-{sub_id}_{y}_per_{x}.png"
+        plt.savefig(save_path)
+        plt.close()
+        print(f"Plot for sub_{sub_id} was saved unter {save_path}")
     else:
-        cond_id = 2
-    save_path = DIR / "analysis" / "individual_results" / f"cond-{cond_id}" / f"sub-{sub_id}_plots.png"
-    plt.savefig(save_path)
-    print(f"Plot for sub_{sub_id} was saved unter {save_path}")
-    
-    plt.close()
+        plt.show()
 
 def plot_data(df, x, y, col, row, hue, kind="scatterplot", baseline=False):
     
