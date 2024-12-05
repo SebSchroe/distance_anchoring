@@ -15,11 +15,26 @@ questionnaire_df = analysis.get_questionnaire_df()
 # filter for specific cond_ids and block_ids
 df = df[df["cond_id"].isin(cond_ids) & df["block_id"].isin(block_ids)]
 
-# remove all trials with less than 0.3 and more than 15 seconds response time
-#df = analysis.remove_trials(df=df)
+# data treatment and calculation of error parameter
+df = analysis.data_treatment(df=df)
 
-# data manipulation and calculation of new parameter
-df = analysis.data_manipulation(df=df)
+
+
+# %% plot individual raw data per participant and save the plot
+for sub_id in sub_ids:
+    analysis.plot_data_per_sub(df=df, sub_id=sub_id, x="speaker_distance", y="signed_error", baseline="zero", save=True)
+
+# %% observe questionnaire at its own
+analysis.observe_questionnaire(df=questionnaire_df, x="cond_id", y="age", hue="gender")
+
+# %% 
+# remove all trials with less than 0.5 s
+filtered_df = analysis.remove_failed_trials(df=df)
+
+# identify outliers in response_time
+for sub_id in sub_ids:
+    new_outliers = analysis.identify_response_outliers(df=filtered_df, sub_id=sub_id)
+
 
 # calculate mean led_distance, mean signed and mean absolute error per sub_id, cond_id, block_id and speaker_distance
 means_df = analysis.get_means_df(df=df)
@@ -30,12 +45,7 @@ mean_of_means_df = analysis.get_mean_of_means_df(means_df=means_df)
 #TODO: response time per trial
 #TODO: signed error depending on distance difference to previous stimulus
 
-# %% observe questionnaire at its own
-analysis.observe_questionnaire(df=questionnaire_df, x="cond_id", y="q09", hue="gender")
 
-# %% plot individual results per participant
-for sub_id in sub_ids:
-    analysis.plot_data_per_sub(df=df, sub_id=sub_id, x="speaker_distance", y="signed_error", baseline="zero", save=True)
 
 # %% plot all datapoints per cond_id and block_id
 analysis.plot_data(df=df, x="speaker_distance", y="led_distance",

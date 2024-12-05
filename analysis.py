@@ -75,12 +75,45 @@ def plot_data_per_sub(df, sub_id, x, y, baseline=False, save=False):
             cond_id = 1
         else:
             cond_id = 2
-        save_path = DIR / "analysis" / "individual_results" / f"cond-{cond_id}" / f"{y}_per_{x}" / f"sub-{sub_id}_{y}_per_{x}.png"
+        save_path = DIR / "analysis" / "individual_results_raw_data" / f"cond-{cond_id}" / f"{y}_per_{x}" / f"sub-{sub_id}_{y}_per_{x}.png"
         plt.savefig(save_path)
         plt.close()
         print(f"Plot for sub_{sub_id} was saved unter {save_path}")
     else:
         plt.show()
+
+def identify_response_outliers(df, sub_id):
+    
+    # filter df for participants and block
+    sub_id_int = int(sub_id)
+    
+    sub_df = df[df["sub_id"] == sub_id_int]
+    
+    g = sns.FacetGrid(sub_df, col="block_id")
+    
+    g.map_dataframe(sns.boxplot, y="response_time")
+    
+    g.map_dataframe(sns.histplot, y="response_time", binwidth=1, kde=True)
+        
+    plt.close()
+    
+    for block_id in [1, 2, 4, 6]:
+        filtered_df = sub_df[sub_df["block_id"] == block_id]
+        
+        outliers = find_outliers_IQR(df=filtered_df, column="response_time")
+        print(f"Number of detected outliers for sub-{sub_id} in block-{block_id}:", len(outliers))
+    
+    
+def find_outliers_IQR(df, column):
+
+   q1 = df[column].quantile(0.25)
+   q3 = df[column].quantile(0.75)
+   IQR = q3 - q1
+
+   outliers = df[(df[column] < (q1 - 1.5 * IQR)) | (df[column] > (q3 + 1.5 * IQR))]
+
+   return outliers    
+    
 
 def plot_data(df, x, y, col, row, hue, kind="scatterplot", baseline=False):
     
@@ -163,7 +196,7 @@ def plot_boxplot(df, x, y, col, hue, baseline=False):
 # distributions
 def show_data_distribution(df, x):
     
-    # create array of data
+    # create array of data and make shure that values are numeric
     array = df[x].to_numpy()
     
     # prepare multiplot
@@ -281,22 +314,27 @@ def observe_questionnaire(df, x, y, hue):
     
     plt.show()
 
-def remove_trials(df):
+def remove_failed_trials(df):
     
     rows_pre = len(df)
-    df = df[(df["response_time"] > 0.3) & (df["response_time"] < 15)]
+    df = df[df["response_time"] > 0.5]
     rows_post = len(df)
     removed_rows = rows_pre - rows_post
     
-    print(f"\nA total of {removed_rows} rows have been removed.")
+    print(f"\nA total of {removed_rows} failed trials have been removed.")
     return df
 
-def data_manipulation(df):
+def data_treatment(df):
     
+    print("\nData treatment:")
     df["stim_id"] = df["stim_id"].str.strip() # convert values of stim_id to same form
+    print("Converted stim_id values in same form.")
+    
+    df["response_time"] = pd.to_numeric(df["response_time"]) # convert values in numeric values
+    print("Converted response_time to numeric values.")
     
     df["speaker_distance"] = df["speaker_id"].apply(lambda x: get_speaker_distance(x, speaker_dict)) # convert speaker_id in  actual distance
-    print("\nSpeaker IDs have been converted to speaker distance.")
+    print("Speaker IDs have been converted to speaker distance.")
     
     df["signed_error"] = df["led_distance"] - df["speaker_distance"] # calculate signed error
     df["absolute_error"] = abs(df["signed_error"]) # calculate absolute error
