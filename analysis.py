@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import statsmodels.formula.api as smf
 import statsmodels.api as sm
 import statsmodels.stats.power as smp
-from scipy.stats import shapiro, kstest
+from scipy.stats import shapiro, kstest, ttest_ind
 
 DIR = pathlib.Path(os.curdir)
 speaker_dict = {0: 2.00,
@@ -51,7 +51,7 @@ def plot_data_per_sub(df, sub_id, x, y, baseline=False, save=False):
         ax.errorbar(x=sub_df[x], y=sub_df["mean_y_value"], yerr=sub_df["std_y_value"],
                     fmt="-o", markersize=5, capsize=4, label="Mean ± Std")
         
-        ax.set_aspect("equal", adjustable="box")
+        #ax.set_aspect("equal", adjustable="box")
         
         if baseline == "one_one":
             # add 1:1 line through the origin
@@ -70,51 +70,89 @@ def plot_data_per_sub(df, sub_id, x, y, baseline=False, save=False):
     plt.subplots_adjust(right=0.92, top=0.85)
     
     if save:
-        # save plots
-        if sub_id_int % 2 == 1:
-            cond_id = 1
-        else:
-            cond_id = 2
-        save_path = DIR / "analysis" / "individual_results_raw_data" / f"cond-{cond_id}" / f"{y}_per_{x}" / f"sub-{sub_id}_{y}_per_{x}.png"
-        plt.savefig(save_path)
-        plt.close()
-        print(f"Plot for sub_{sub_id} was saved unter {save_path}")
+        save_plot(sub_id=sub_id, x=x, y=y)
     else:
         plt.show()
 
-def identify_response_outliers(df, sub_id):
+def plot_averaged_data(df, x, y):
     
-    # filter df for participants and block
+    # calculate mean led_distance, mean signed and mean absolute error
+    means_df = get_means_df(df=df)
+    # calculate means of mean led_distance, mean signed and mean absolute error
+    mean_of_means_df = get_mean_of_means_df(means_df=means_df)
+    
+    if y == "led_distance":
+        baseline = "one_one"
+    elif y == "signed_error":
+        baseline = "zero"
+    elif y == "absolute_error":
+        baseline = None
+    
+    # plot mean results of each sub_id per cond_id and block_id
+    plot_data(df=means_df, x=x, y=f"mean_{y}",
+              col="block_id", row="cond_id", hue="sub_id", kind="lineplot", baseline=baseline)
+
+    # plot mean of mean results with error bars
+    plot_with_error_bars(df=mean_of_means_df, x=x, y=f"mean_mean_{y}",
+                         yerr=f"std_mean_{y}", col="block_id", row="cond_id", baseline=baseline)
+
+    # plot boxplot of mean results
+    plot_boxplot(df=means_df, x=x, y=f"mean_{y}",
+                 col="block_id", hue="cond_id", baseline=baseline)
+
+
+def save_plot(sub_id, x, y):
+    
+    # convert sub_id
     sub_id_int = int(sub_id)
     
-    sub_df = df[df["sub_id"] == sub_id_int]
-    
-    g = sns.FacetGrid(sub_df, col="block_id")
-    
-    g.map_dataframe(sns.boxplot, y="response_time")
-    
-    g.map_dataframe(sns.histplot, y="response_time", binwidth=1, kde=True)
-        
+    if sub_id_int % 2 == 1:
+        cond_id = 1
+    else:
+        cond_id = 2
+    save_path = DIR / "analysis" / "individual_results_raw_data" / f"cond-{cond_id}" / f"{y}_per_{x}" / f"sub-{sub_id}_{y}_per_{x}.png"
+    plt.savefig(save_path)
     plt.close()
+    print(f"Plot for sub_{sub_id} was saved unter {save_path}")
+
+
+def identify_and_remove_response_outliers(df):
     
-    for block_id in [1, 2, 4, 6]:
-        filtered_df = sub_df[sub_df["block_id"] == block_id]
+    # prepare outlier removal
+    cleaned_df = df.copy()
+    removal_summary = []
+    total_removals = 0
+    
+    for sub_id in cleaned_df["sub_id"].unique():
         
-        outliers = find_outliers_IQR(df=filtered_df, column="response_time")
-        print(f"Number of detected outliers for sub-{sub_id} in block-{block_id}:", len(outliers))
+        sub_id_int = int(sub_id)
+        sub_df = cleaned_df[cleaned_df["sub_id"] == sub_id_int]
     
+        for block_id in sub_df["block_id"].unique():
+            
+            # filter for block_ids
+            block_df = sub_df[sub_df["block_id"] == block_id]
+            
+            # calculate outlier border
+            mean = block_df["response_time"].mean()
+            std = block_df["response_time"].std()
+            sd3 = mean + 3 * std
+            
+            # identify outliers
+            block_outliers = block_df[block_df["response_time"] > sd3]
+            
+            # drop outliers
+            cleaned_df = cleaned_df.drop(index=block_outliers.index)
+            
+            # add counted outliers to summary
+            removal_summary.append(f"Sub-{sub_id} in Block-{block_id}: 3sd = {sd3:.3f} -> {len(block_outliers)} response outliers removed.")
+            total_removals += len(block_outliers)
     
-def find_outliers_IQR(df, column):
-
-   q1 = df[column].quantile(0.25)
-   q3 = df[column].quantile(0.75)
-   IQR = q3 - q1
-
-   outliers = df[(df[column] < (q1 - 1.5 * IQR)) | (df[column] > (q3 + 1.5 * IQR))]
-
-   return outliers    
+    print(f"\nA total of {total_removals} response outliers have been removed:")
+    print("\n".join(removal_summary))
     
-
+    return cleaned_df
+    
 def plot_data(df, x, y, col, row, hue, kind="scatterplot", baseline=False):
     
     # data plotting
@@ -203,7 +241,7 @@ def show_data_distribution(df, x):
     fig,axes = plt.subplots(1, 2)
         
     # plot histogram
-    sns.histplot(data=df, x=x, bins=7, kde=True, ax=axes[0])
+    sns.histplot(data=df, x=x, kde=True, ax=axes[0])
     axes[0].set_title("Histogram with KDE")
     
     # plot QQ-Plot
@@ -231,6 +269,19 @@ def show_data_distribution(df, x):
     else:
         print("Fail to reject H0: Data is Gaussian.")
 
+def get_group_parameter(df, block_id, speaker_distance):
+    
+    mean_1 = df.loc[(df["cond_id"] == 1) & (df["block_id"] == block_id) & (df["speaker_distance"] == speaker_distance), "mean_mean_led_distance"].values[0]
+    std_1 = df.loc[(df["cond_id"] == 1) & (df["block_id"] == block_id) & (df["speaker_distance"] == speaker_distance), "std_mean_led_distance"].values[0]
+    n_1 = 15
+    group_1 = [mean_1, std_1, n_1]
+    
+    mean_2 = df.loc[(df["cond_id"] == 2) & (df["block_id"] == block_id) & (df["speaker_distance"] == speaker_distance), "mean_mean_led_distance"].values[0]
+    std_2 = df.loc[(df["cond_id"] == 2) & (df["block_id"] == block_id) & (df["speaker_distance"] == speaker_distance), "std_mean_led_distance"].values[0]
+    n_2 = 15
+    group_2 = [mean_2, std_2, n_2]
+    
+    return group_1, group_2
 
 # statistical power analysis
 def calculate_cohens_d(mean_1, std_1, n_1, mean_2, std_2, n_2):    
@@ -238,7 +289,7 @@ def calculate_cohens_d(mean_1, std_1, n_1, mean_2, std_2, n_2):
     d = (mean_1 - mean_2) / pooled_std
     return d
 
-def predict_sample_size(group_1, group_2, alpha=0.05, power=0.8, alternative="two-sided"):
+def predict_sample_size(group_1, group_2, alpha=0.05, nobs1=15, alternative="two-sided"):
     """
     alternative = two-sided", "larger" or "smaller"
     """
@@ -248,9 +299,9 @@ def predict_sample_size(group_1, group_2, alpha=0.05, power=0.8, alternative="tw
     effect_size = calculate_cohens_d(mean_1, std_1, n_1, mean_2, std_2, n_2)
     
     analysis = smp.TTestIndPower()
-    sample_size = analysis.solve_power(effect_size=effect_size, alpha=alpha, power=power, alternative=alternative)
+    power = analysis.solve_power(effect_size=effect_size, alpha=alpha, nobs1=nobs1, alternative=alternative)
     
-    print(f"Predicted sample size per condition: {sample_size}")
+    print(f"Statistical power of given groups: {power:.3f}")
 
 # linear regression diagnostics
 def create_diagnostic_plots(df, x, y):
@@ -292,7 +343,7 @@ def get_concat_df(sub_ids):
                 print(f"Empty file: {file_path}")
     
     # get number of sub_ids per condition
-    print("n cond_1:", sum(int(sub_id) % 2 != 0 for sub_id in sub_ids))
+    print("\nn cond_1:", sum(int(sub_id) % 2 != 0 for sub_id in sub_ids))
     print("n cond_2:", sum(int(sub_id) % 2 == 0 for sub_id in sub_ids))
          
     return concat_df
@@ -314,14 +365,14 @@ def observe_questionnaire(df, x, y, hue):
     
     plt.show()
 
-def remove_failed_trials(df):
+def remove_failed_responses(df):
     
     rows_pre = len(df)
     df = df[df["response_time"] > 0.5]
     rows_post = len(df)
     removed_rows = rows_pre - rows_post
     
-    print(f"\nA total of {removed_rows} failed trials have been removed.")
+    print(f"\nA total of {removed_rows} failed responses have been removed.")
     return df
 
 def data_treatment(df):
