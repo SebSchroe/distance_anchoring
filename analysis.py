@@ -76,16 +76,16 @@ def plot_data_per_sub(df, sub_id, x, y, baseline=False, save=False):
 
 def plot_averaged_data(df, x, y):
     
-    # calculate mean led_distance, mean signed and mean absolute error
-    means_df = get_means_df(df=df)
-    # calculate means of mean led_distance, mean signed and mean absolute error
-    mean_of_means_df = get_mean_of_means_df(means_df=means_df)
+    # calculate mean response_distance, mean signed and mean absolute error
+    means_df = get_means_df(df=df, value_to_mean=y)
+    # calculate means of mean response_distance, mean signed and mean absolute error
+    mean_of_means_df = get_mean_of_means_df(df=means_df, mean_value_to_mean=f"mean_{y}")
     
-    if y == "led_distance":
+    if y == "response_distance":
         baseline = "one_one"
     elif y == "signed_error":
         baseline = "zero"
-    elif y == "absolute_error":
+    else:
         baseline = None
     
     # plot mean results of each sub_id per cond_id and block_id
@@ -106,10 +106,15 @@ def save_plot(sub_id, x, y):
     # convert sub_id
     sub_id_int = int(sub_id)
     
-    if sub_id_int % 2 == 1:
-        cond_id = 1
+    # set cond_id
+    if sub_id_int <= 30:
+        if sub_id_int % 2 == 1:
+            cond_id = 1
+        else:
+            cond_id = 2
     else:
-        cond_id = 2
+        cond_id = 3
+        
     save_path = DIR / "analysis" / "individual_results_raw_data" / f"cond-{cond_id}" / f"{y}_per_{x}" / f"sub-{sub_id}_{y}_per_{x}.png"
     plt.savefig(save_path)
     plt.close()
@@ -169,7 +174,7 @@ def plot_data(df, x, y, col, row, hue, kind="scatterplot", baseline=False):
     
     # adjust layout
     for ax in g.axes.flat:
-        ax.set_aspect("equal", adjustable="box")
+        # ax.set_aspect("equal", adjustable="box")
         
         if baseline == "one_one":
             # add 1:1 line through the origin
@@ -201,7 +206,7 @@ def plot_with_error_bars(df, x, y, yerr, col, row, baseline=False):
             continue # no baseline
         
         # set equal aspect
-        ax.set_aspect("equal", adjustable="box")
+        # ax.set_aspect("equal", adjustable="box")
         
     # layout
     g.tight_layout()
@@ -226,7 +231,7 @@ def plot_boxplot(df, x, y, col, hue, baseline=False):
             continue # no baseline
 
         # Set equal aspect ratio
-        ax.set_aspect("equal", adjustable="box")
+        # ax.set_aspect("equal", adjustable="box")
     
     g.add_legend(title="Condition")
     plt.show() 
@@ -271,13 +276,13 @@ def show_data_distribution(df, x):
 
 def get_group_parameter(df, block_id, speaker_distance):
     
-    mean_1 = df.loc[(df["cond_id"] == 1) & (df["block_id"] == block_id) & (df["speaker_distance"] == speaker_distance), "mean_mean_led_distance"].values[0]
-    std_1 = df.loc[(df["cond_id"] == 1) & (df["block_id"] == block_id) & (df["speaker_distance"] == speaker_distance), "std_mean_led_distance"].values[0]
+    mean_1 = df.loc[(df["cond_id"] == 1) & (df["block_id"] == block_id) & (df["speaker_distance"] == speaker_distance), "mean_mean_response_distance"].values[0]
+    std_1 = df.loc[(df["cond_id"] == 1) & (df["block_id"] == block_id) & (df["speaker_distance"] == speaker_distance), "std_mean_response_distance"].values[0]
     n_1 = 15
     group_1 = [mean_1, std_1, n_1]
     
-    mean_2 = df.loc[(df["cond_id"] == 2) & (df["block_id"] == block_id) & (df["speaker_distance"] == speaker_distance), "mean_mean_led_distance"].values[0]
-    std_2 = df.loc[(df["cond_id"] == 2) & (df["block_id"] == block_id) & (df["speaker_distance"] == speaker_distance), "std_mean_led_distance"].values[0]
+    mean_2 = df.loc[(df["cond_id"] == 2) & (df["block_id"] == block_id) & (df["speaker_distance"] == speaker_distance), "mean_mean_response_distance"].values[0]
+    std_2 = df.loc[(df["cond_id"] == 2) & (df["block_id"] == block_id) & (df["speaker_distance"] == speaker_distance), "std_mean_response_distance"].values[0]
     n_2 = 15
     group_2 = [mean_2, std_2, n_2]
     
@@ -322,10 +327,10 @@ def create_diagnostic_plots(df, x, y):
     print(vif)
 
 # help functions
-def get_concat_df(sub_ids):
+def get_Basti_df(sub_ids, cond_ids, block_ids):
     
     # create empty dataframe
-    concat_df = pd.DataFrame()
+    df = pd.DataFrame()
     
     # loop through all sub_ids
     for sub_id in sub_ids:
@@ -336,17 +341,34 @@ def get_concat_df(sub_ids):
             try:
                 # get csv file and concatenate
                 new_df = pd.read_csv(file_path)
-                concat_df = pd.concat([concat_df, new_df], axis=0, ignore_index=True)
+                df = pd.concat([df, new_df], axis=0, ignore_index=True)
             except FileNotFoundError:
                 print(f"File not found: {file_path}")
             except pd.errors.EmptyDataError:
                 print(f"Empty file: {file_path}")
     
+    # filter for specific cond_ids and block_ids
+    df = df[df["cond_id"].isin(cond_ids) & df["block_id"].isin(block_ids)]
+    print(f"\nFiltered for conditions {cond_ids} and blocks {block_ids}")
+    
     # get number of sub_ids per condition
     print("\nn cond_1:", sum(int(sub_id) % 2 != 0 for sub_id in sub_ids))
     print("n cond_2:", sum(int(sub_id) % 2 == 0 for sub_id in sub_ids))
-         
-    return concat_df
+    
+    print("\nData treatment for Basti_df:")
+    df = df.rename(columns={"led_distance": "response_distance"})
+    print("Renamed led_distance to response_distance.")
+    
+    df["stim_id"] = df["stim_id"].str.strip() # convert values of stim_id to same form
+    print("Converted stim_id values in same form.")
+    
+    df["response_time"] = pd.to_numeric(df["response_time"]) # convert values in numeric values
+    print("Converted response_time to numeric values.")
+    
+    df["speaker_distance"] = df["speaker_id"].apply(lambda x: get_speaker_distance(x, speaker_dict)) # convert speaker_id in  actual distance
+    print("Speaker IDs have been converted to speaker distance.")
+    
+    return df
 
 def get_questionnaire_df():
     
@@ -354,6 +376,50 @@ def get_questionnaire_df():
     df = pd.read_csv(file_path, sep=";")
     df["sub_id"] = df["sub_id"].str.replace("sub-", "").astype(int)
     return df
+
+def get_Oskar_df():
+    
+    file_path = DIR / "results" / "distance_plasticity.csv"
+    df = pd.read_csv(file_path)
+    
+    # data treatment
+    print("\nData treatment for Oskar_df:")
+    df = df.rename(columns={"subject_ID": "sub_id", 
+                            "spk_dist": "speaker_distance", 
+                            "channel": "speaker_id",
+                            "slider_dist": "response_distance", 
+                            "USO_file_name": "stim_id",
+                            "idx": "event_id",
+                            "phase": "block_id",
+                            "signed_err": "signed_error",
+                            "absolute_err": "absolute_error"})
+    print("Renamend columns to better fit Basti_df")
+    
+    df["cond_id"] = 3 # add column with cond 3
+    print("Added column with cond_id = 3")
+    
+    df["sub_id"] = df["sub_id"].str.replace("sub_", "").astype(int)
+    df["sub_id"] = df["sub_id"] + 30
+    print("Converted sub_id Strings to Integer and added 30 to every sub_id")
+    
+    df["block_id"] = df["block_id"].astype(int)
+    # df = df[df["block_id"] != 3]
+    df["block_id"] = df["block_id"].replace({0: 1, 1: 2, 2: 4, 3: 6})
+    print("Mapped phases with block_ids of Basti_df: 0 -> 2, 1 -> 4, 2 -> 6, 3 -> removed")
+    
+    return df
+
+def merge_dataframes(df_1, df_2):
+    
+    columns_to_merge = ["sub_id", "cond_id", "block_id", "event_id", "stim_id", 
+                        "speaker_distance", "response_distance", "response_time"]
+    
+    df_1 = df_1[columns_to_merge]
+    df_2 = df_2[columns_to_merge]
+    
+    merged_df = pd.concat([df_1, df_2], axis=0, ignore_index=True)
+    
+    return merged_df
 
 def observe_questionnaire(df, x, y, hue):
     
@@ -375,54 +441,38 @@ def remove_failed_responses(df):
     print(f"\nA total of {removed_rows} failed responses have been removed.")
     return df
 
-def data_treatment(df):
+def data_calculations(df):
     
-    print("\nData treatment:")
-    df["stim_id"] = df["stim_id"].str.strip() # convert values of stim_id to same form
-    print("Converted stim_id values in same form.")
-    
-    df["response_time"] = pd.to_numeric(df["response_time"]) # convert values in numeric values
-    print("Converted response_time to numeric values.")
-    
-    df["speaker_distance"] = df["speaker_id"].apply(lambda x: get_speaker_distance(x, speaker_dict)) # convert speaker_id in  actual distance
-    print("Speaker IDs have been converted to speaker distance.")
-    
-    df["signed_error"] = df["led_distance"] - df["speaker_distance"] # calculate signed error
+    df["signed_error"] = df["response_distance"] - df["speaker_distance"] # calculate signed error
     df["absolute_error"] = abs(df["signed_error"]) # calculate absolute error
-    print("Signed and absolute error per trial have been calculated")
-
+    df["squared_signed_error"] = df["signed_error"] ** 2 # calculate squared signed error
+    print("\nSigned, absolute and squared signed error per trial have been calculated")
+    
     return df
 
-def get_means_df(df):
+def get_means_df(df, value_to_mean):
     
-    means_df = (
+    df = (
         df.groupby(["sub_id", "cond_id", "block_id", "speaker_distance"], as_index=False)
-        .agg(mean_led_distance=("led_distance", "mean"),
-             std_led_distance=("led_distance", "std"),
-             mean_signed_error=("signed_error", "mean"),
-             mean_absolute_error=("absolute_error", "mean"))
-        .assign(speaker_distance=lambda x: pd.Categorical(
-            x["speaker_distance"].astype(int),
-            categories=sorted(x["speaker_distance"].unique().astype(int)),
-            ordered=True
+        .agg(mean_value=(f"{value_to_mean}", "mean"),
+             std_value=(f"{value_to_mean}", "std")
         ))
-    )
-    return means_df
-
-def get_mean_of_means_df(means_df):
     
-    mean_of_means_df = (
-        means_df.groupby(["cond_id", "block_id", "speaker_distance"])
-        .agg(mean_mean_led_distance=("mean_led_distance", "mean"),
-             std_mean_led_distance=("mean_led_distance", "std"),
-             mean_mean_signed_error=("mean_signed_error", "mean"),
-             std_mean_signed_error=("mean_signed_error", "std"),
-             mean_mean_absolute_error=("mean_absolute_error", "mean"),
-             std_mean_absolute_error=("mean_absolute_error", "std"),
+    df = df.rename(columns={"mean_value": f"mean_{value_to_mean}", "std_value": f"std_{value_to_mean}"})
+    return df
+
+def get_mean_of_means_df(df, mean_value_to_mean):
+    
+    df = (
+        df.groupby(["cond_id", "block_id", "speaker_distance"])
+        .agg(mean_mean_value=(f"{mean_value_to_mean}", "mean"),
+             std_mean_value=(f"{mean_value_to_mean}", "std")
              )
         .reset_index()
     )
-    return mean_of_means_df
+    
+    df = df.rename(columns={"mean_mean_value": f"mean_{mean_value_to_mean}", "std_mean_value": f"std_{mean_value_to_mean}"})
+    return df
 
 def calc_experiment_duration(n_reps, mean_response_time):
     n_reps = n_reps
