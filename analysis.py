@@ -99,6 +99,8 @@ def plot_averaged_data(df, x, y):
     # plot boxplot of mean results
     plot_boxplot(df=means_df, x=x, y=f"mean_{y}",
                  col="block_id", hue="cond_id", baseline=baseline)
+    
+    return means_df, mean_of_means_df
 
 
 def save_plot(sub_id, x, y):
@@ -258,7 +260,7 @@ def show_data_distribution(df, x):
     
     # Shapiro-Wilk Test
     test_stats, p_value = shapiro(array)
-    print("Result of Shapiro-Wilk Test:")
+    print("\nResult of Shapiro-Wilk Test:")
     print(f"Statistic: {test_stats:.3f}, p-value: {p_value:.3f}")
     if p_value < 0.05:
         print("Reject H0: Data is not Gaussian.")
@@ -405,7 +407,7 @@ def get_Oskar_df():
     df["block_id"] = df["block_id"].astype(int)
     # df = df[df["block_id"] != 3]
     df["block_id"] = df["block_id"].replace({0: 1, 1: 2, 2: 4, 3: 6})
-    print("Mapped phases with block_ids of Basti_df: 0 -> 2, 1 -> 4, 2 -> 6, 3 -> removed")
+    print("Mapped phases with block_ids of Basti_df: 0 -> 1, 1 -> 2, 2 -> 4, 3 -> 6")
     
     return df
 

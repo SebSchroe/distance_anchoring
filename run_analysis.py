@@ -2,6 +2,8 @@
 # import modules
 import analysis
 from scipy.stats import shapiro, kstest, ttest_ind
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 # set global variables
 sub_ids = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10",
@@ -25,15 +27,7 @@ df = analysis.remove_failed_responses(df=df)
 # identify outliers in response_time with 3 sd method of each block per sub_id
 cleaned_df = analysis.identify_and_remove_response_outliers(df=df)
 
-# calculate mean response_distance, mean signed and mean absolute error
-means_df = analysis.get_means_df(df=cleaned_df)
-
-# calculate means of mean response_distance, mean signed and mean absolute error
-mean_of_means_df = analysis.get_mean_of_means_df(means_df=means_df)
-
 #TODO: signed error depending on distance difference to previous stimulus
-
-#TODO: change speaker_distances in Oskars data so they match my Data
 
 # %% plot individual raw data per participant and save the plot
 for sub_id in cleaned_df["sub_id"].unique():
@@ -43,20 +37,44 @@ for sub_id in cleaned_df["sub_id"].unique():
 analysis.observe_questionnaire(df=questionnaire_df, x="cond_id", y="age", hue="gender")
 
 # %% plot averaged data
-analysis.plot_averaged_data(df=cleaned_df, x="speaker_distance", y="response_distance")
+means_df, mean_of_means_df = analysis.plot_averaged_data(df=cleaned_df, x="speaker_distance", y="response_distance")
 
 # %% t-test (Welchs t-test aka Two-sample t_test with different std)
 
-#TODO: check for property of independence, identically distributed, normally distributed and equal variances
+# TODO: Make a function out of this and make it more interactive -> check every assumption and ask for outlier removal if necessary
 
-dof = 14
-group_1_df = means_df[(means_df["cond_id"] == 1) & (means_df["block_id"] == 6) & (means_df["speaker_distance"] == 12)]
-group_1_array = group_1_df["mean_response_distance"]
+# set variables
+block_id = 6
+speaker_distance = 11
+group_cond_ids = [1, 2]
 
-group_2_df = means_df[(means_df["cond_id"] == 2) & (means_df["block_id"] == 6) & (means_df["speaker_distance"] == 12)]
-group_2_array = group_2_df["mean_response_distance"]
+# get data
+t_test_df = means_df[(means_df["cond_id"].isin(group_cond_ids)) & (means_df["block_id"] == block_id) & (means_df["speaker_distance"] == speaker_distance)]
+# get dataframe per group
+group_1_df = t_test_df[t_test_df["cond_id"] == group_cond_ids[0]]
+group_2_df = t_test_df[t_test_df["cond_id"] == group_cond_ids[1]]
+# get array per group
+group_1_array = t_test_df[t_test_df["cond_id"] == group_cond_ids[0]]["mean_response_distance"].to_numpy()
+group_2_array = t_test_df[t_test_df["cond_id"] == group_cond_ids[1]]["mean_response_distance"].to_numpy()
 
+# Assumptions:
+    # 1. Independence of observations: Each subject should belong to only one group
+print("\nAssumption 1 (Independence): Each subject only belong to one group. -> True")
+        
+    # 2. No significant outliers in the groups
+sns.boxplot(t_test_df, x="cond_id", y="mean_response_distance")
+sns.swarmplot(t_test_df, x="cond_id", y="mean_response_distance")
+plt.show()
+print("\nAssumption 2 (Outliers): No outlier has been detected. -> True")
+
+    # 3. Normality: The data for each group should be approximately normal distributed
+analysis.show_data_distribution(df=group_1_df, x="mean_response_distance")
+analysis.show_data_distribution(df=group_2_df, x="mean_response_distance")
+print("\nAssumption 3 (Normality): The data for each group should be normal distributed. -> True")
+
+# Welchs t_test
 t_stat, p_val = ttest_ind(a=group_1_array, b=group_2_array, equal_var=False, alternative="two-sided")
+print(f"\nT-Test results for conditions {group_cond_ids} in block {block_id} at speaker distance {speaker_distance}.")
 print(f"t-statistic: {t_stat:.3f}")
 print(f"p-value: {p_val:.3f}")
 
