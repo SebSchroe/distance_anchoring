@@ -146,7 +146,10 @@ def identify_and_remove_response_outliers(df):
             sd3 = mean + 3 * std
             
             # identify outliers
-            block_outliers = block_df[block_df["response_time"] > sd3]
+            if sub_id == 6 and block_id == 1:
+                block_outliers = block_df # remove whole block_ dataset
+            else:
+                block_outliers = block_df[block_df["response_time"] > sd3]
             
             # drop outliers
             cleaned_df = cleaned_df.drop(index=block_outliers.index)
@@ -154,12 +157,46 @@ def identify_and_remove_response_outliers(df):
             # add counted outliers to summary
             removal_summary.append(f"Sub-{sub_id} in Block-{block_id}: 3sd = {sd3:.3f} -> {len(block_outliers)} response outliers removed.")
             total_removals += len(block_outliers)
-    
+                
     print(f"\nA total of {total_removals} response outliers have been removed:")
     print("\n".join(removal_summary))
+    print("\nBlock 1 of sub-6 has been removed totally due to too long response time")
     
     return cleaned_df
+
+def detect_and_remove_outliers_with_IQR(df, cond_id, y):
     
+    print(f"\nChecking for assumption 2 in group {cond_id}.")
+    
+    cond_df = df[df["cond_id"] == cond_id]
+    
+    q1 = cond_df[f"mean_{y}"].quantile(0.25)
+    q3 = cond_df[f"mean_{y}"].quantile(0.75)
+    
+    iqr = q3 - q1
+    
+    lower_bound = q1 - 1.5 * iqr
+    upper_bound = q3 + 1.5 * iqr
+    
+    cleaned_df = cond_df[(cond_df[f"mean_{y}"] >= lower_bound) &
+                       (cond_df[f"mean_{y}"] <= upper_bound)]
+    
+    detected_outliers = len(cond_df) - len(cleaned_df)
+    
+    if detected_outliers == 0:
+        print(f"No outliers for group {cond_id} detected. -> Assumption 2 for group {cond_id} is True")
+        return cond_df
+    
+    print(f"Outliers for group {cond_id} detected: {detected_outliers}")
+    # interactive decission if outliers will be removed
+    user_input = input("Remove outliers from this dataframe? (y/n): ").strip().lower()
+    if user_input == "y":
+        print(f"Outliers for group {cond_id} removed. -> Assumption 2 is True")
+        return cleaned_df
+    elif user_input == "n":
+        print(f"No outliers for group {cond_id} removed -> Assumption 2 is False")
+        return cond_df        
+
 def plot_data(df, x, y, col, row, hue, kind="scatterplot", baseline=False):
     
     # data plotting
@@ -258,23 +295,27 @@ def show_data_distribution(df, x):
     plt.tight_layout()
     plt.show()
     
+    print("\nCheck for normality:")
+    
     # Shapiro-Wilk Test
     test_stats, p_value = shapiro(array)
-    print("\nResult of Shapiro-Wilk Test:")
+    print("Result of Shapiro-Wilk Test:")
     print(f"Statistic: {test_stats:.3f}, p-value: {p_value:.3f}")
     if p_value < 0.05:
-        print("Reject H0: Data is not Gaussian.")
+        print("Reject H0: Data is not Gaussian. -> Assumption 3 is False")
     else:
-        print("Fail to reject H0: Data is Gaussian.")
+        print("Fail to reject H0: Data is Gaussian. -> Assumption 3 is True")
     
     # Kolmogorov-Smirnov Test
-    ks_stat, ks_p_value = kstest(array, "norm", args=(np.mean(array), np.std(array)))
-    print("\nResult of Kolmogorov-Smirnov Test:")
-    print(f"Statistic: {ks_stat:.3f}, p-value: {ks_p_value:.3f}")
-    if ks_p_value < 0.05:
-        print("Reject H0: Data is not Gaussian.")
-    else:
-        print("Fail to reject H0: Data is Gaussian.")
+    # ks_stat, ks_p_value = kstest(array, "norm", args=(np.mean(array), np.std(array)))
+    # print("\nResult of Kolmogorov-Smirnov Test:")
+    # print(f"Statistic: {ks_stat:.3f}, p-value: {ks_p_value:.3f}")
+    # if ks_p_value < 0.05:
+    #     print("Reject H0: Data is not Gaussian.")
+    # else:
+    #     print("Fail to reject H0: Data is Gaussian.")
+        
+    
 
 def get_group_parameter(df, block_id, speaker_distance):
     

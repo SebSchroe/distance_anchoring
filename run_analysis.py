@@ -37,7 +37,8 @@ for sub_id in cleaned_df["sub_id"].unique():
 analysis.observe_questionnaire(df=questionnaire_df, x="cond_id", y="age", hue="gender")
 
 # %% plot averaged data
-means_df, mean_of_means_df = analysis.plot_averaged_data(df=cleaned_df, x="speaker_distance", y="response_distance")
+y = "response_distance"
+means_df, mean_of_means_df = analysis.plot_averaged_data(df=cleaned_df, x="speaker_distance", y=y)
 
 # %% t-test (Welchs t-test aka Two-sample t_test with different std)
 
@@ -50,27 +51,28 @@ group_cond_ids = [1, 2]
 
 # get data
 t_test_df = means_df[(means_df["cond_id"].isin(group_cond_ids)) & (means_df["block_id"] == block_id) & (means_df["speaker_distance"] == speaker_distance)]
-# get dataframe per group
-group_1_df = t_test_df[t_test_df["cond_id"] == group_cond_ids[0]]
-group_2_df = t_test_df[t_test_df["cond_id"] == group_cond_ids[1]]
-# get array per group
-group_1_array = t_test_df[t_test_df["cond_id"] == group_cond_ids[0]]["mean_response_distance"].to_numpy()
-group_2_array = t_test_df[t_test_df["cond_id"] == group_cond_ids[1]]["mean_response_distance"].to_numpy()
 
 # Assumptions:
-    # 1. Independence of observations: Each subject should belong to only one group
 print("\nAssumption 1 (Independence): Each subject only belong to one group. -> True")
-        
-    # 2. No significant outliers in the groups
-sns.boxplot(t_test_df, x="cond_id", y="mean_response_distance")
-sns.swarmplot(t_test_df, x="cond_id", y="mean_response_distance")
+print("Assumption 2 (Outliers): The data of each group have no significant outliers.")
+print("Assumption 3 (Normality): The data of each group should be normal distributed.")
+
+sns.boxplot(t_test_df, x="cond_id", y=f"mean_{y}")
+sns.swarmplot(t_test_df, x="cond_id", y=f"mean_{y}")
 plt.show()
-print("\nAssumption 2 (Outliers): No outlier has been detected. -> True")
 
     # 3. Normality: The data for each group should be approximately normal distributed
-analysis.show_data_distribution(df=group_1_df, x="mean_response_distance")
-analysis.show_data_distribution(df=group_2_df, x="mean_response_distance")
-print("\nAssumption 3 (Normality): The data for each group should be normal distributed. -> True")
+# check assumptions 2 and 3 for group 1
+group_1_df = analysis.detect_and_remove_outliers_with_IQR(df=t_test_df, cond_id=group_cond_ids[0], y=y)
+analysis.show_data_distribution(df=group_1_df, x=f"mean_{y}")
+
+# check assumptions 2 and 3 for group 2
+group_2_df = analysis.detect_and_remove_outliers_with_IQR(df=t_test_df, cond_id=group_cond_ids[1], y=y)
+analysis.show_data_distribution(df=group_2_df, x=f"mean_{y}")
+
+# get array per group
+group_1_array = t_test_df[t_test_df["cond_id"] == group_cond_ids[0]][f"mean_{y}"].to_numpy()
+group_2_array = t_test_df[t_test_df["cond_id"] == group_cond_ids[1]][f"mean_{y}"].to_numpy()
 
 # Welchs t_test
 t_stat, p_val = ttest_ind(a=group_1_array, b=group_2_array, equal_var=False, alternative="two-sided")
