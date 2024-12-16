@@ -184,7 +184,7 @@ def detect_and_remove_outliers_with_IQR(df, cond_id, y):
     detected_outliers = len(cond_df) - len(cleaned_df)
     
     if detected_outliers == 0:
-        print(f"No outliers for group {cond_id} detected. -> Assumption 2 for group {cond_id} is True")
+        print(f"No outliers in group {cond_id} detected. -> Assumption 2 for group {cond_id} is True")
         return cond_df
     
     print(f"Outliers for group {cond_id} detected: {detected_outliers}")
@@ -295,7 +295,7 @@ def show_data_distribution(df, x):
     plt.tight_layout()
     plt.show()
     
-    print("\nCheck for normality:")
+    print("\nChecking for normality:")
     
     # Shapiro-Wilk Test
     test_stats, p_value = shapiro(array)
@@ -317,19 +317,15 @@ def show_data_distribution(df, x):
         
     
 
-def get_group_parameter(df, block_id, speaker_distance):
+def get_group_parameter(array):
     
-    mean_1 = df.loc[(df["cond_id"] == 1) & (df["block_id"] == block_id) & (df["speaker_distance"] == speaker_distance), "mean_mean_response_distance"].values[0]
-    std_1 = df.loc[(df["cond_id"] == 1) & (df["block_id"] == block_id) & (df["speaker_distance"] == speaker_distance), "std_mean_response_distance"].values[0]
-    n_1 = 15
-    group_1 = [mean_1, std_1, n_1]
+    mean = array.mean()
+    std = array.std()
+    n = len(array)
     
-    mean_2 = df.loc[(df["cond_id"] == 2) & (df["block_id"] == block_id) & (df["speaker_distance"] == speaker_distance), "mean_mean_response_distance"].values[0]
-    std_2 = df.loc[(df["cond_id"] == 2) & (df["block_id"] == block_id) & (df["speaker_distance"] == speaker_distance), "std_mean_response_distance"].values[0]
-    n_2 = 15
-    group_2 = [mean_2, std_2, n_2]
+    parameter = [mean, std, n]
     
-    return group_1, group_2
+    return parameter
 
 # statistical power analysis
 def calculate_cohens_d(mean_1, std_1, n_1, mean_2, std_2, n_2):    
@@ -337,19 +333,26 @@ def calculate_cohens_d(mean_1, std_1, n_1, mean_2, std_2, n_2):
     d = (mean_1 - mean_2) / pooled_std
     return d
 
-def predict_sample_size(group_1, group_2, alpha=0.05, nobs1=15, alternative="two-sided"):
+def statistical_power(group_1, group_2, alpha=0.05, alternative="two-sided"):
     """
     alternative = two-sided", "larger" or "smaller"
     """
     mean_1, std_1, n_1 = group_1
     mean_2, std_2, n_2 = group_2
     
+    nobs1 = n_1
+    ratio = n_2 / n_1
+    
     effect_size = calculate_cohens_d(mean_1, std_1, n_1, mean_2, std_2, n_2)
     
     analysis = smp.TTestIndPower()
-    power = analysis.solve_power(effect_size=effect_size, alpha=alpha, nobs1=nobs1, alternative=alternative)
+    power = analysis.solve_power(effect_size=effect_size, alpha=alpha, nobs1=nobs1, ratio=ratio, alternative=alternative)
     
-    print(f"Statistical power of given groups: {power:.3f}")
+    print("\nStatistical power analysis:")
+    print(f"Group 1: mean = {mean_1:.3f}, std = {std_1:.3f}, n: {n_1}")
+    print(f"Group 2: mean = {mean_2:.3f}, std = {std_2:.3f}, n: {n_2}")
+    print(f"Cohen's d: {effect_size:.3f}")
+    print(f"-> Statistical power of given groups: {power:.3f}")
 
 # linear regression diagnostics
 def create_diagnostic_plots(df, x, y):

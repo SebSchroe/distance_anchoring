@@ -46,11 +46,14 @@ means_df, mean_of_means_df = analysis.plot_averaged_data(df=cleaned_df, x="speak
 
 # set variables
 block_id = 6
-speaker_distance = 11
-group_cond_ids = [1, 2]
+speaker_distance = 7
+group_cond_ids = [2, 3]
 
-# get data
-t_test_df = means_df[(means_df["cond_id"].isin(group_cond_ids)) & (means_df["block_id"] == block_id) & (means_df["speaker_distance"] == speaker_distance)]
+# get data frame and convert speaker_distance of cond 3 to match other speaker_distances
+means_df_copy = means_df.copy()
+means_df_copy["speaker_distance"] = means_df_copy["speaker_distance"].replace(
+    {2.1: 2, 2.96: 3, 3.84: 4, 4.74: 5, 5.67: 6, 6.62: 7, 7.6: 8, 8.8: 9, 9.64: 10, 10.7: 11, 11.78: 12})  
+t_test_df = means_df_copy[(means_df_copy["cond_id"].isin(group_cond_ids)) & (means_df_copy["block_id"] == block_id) & (means_df_copy["speaker_distance"] == speaker_distance)]
 
 # Assumptions:
 print("\nAssumption 1 (Independence): Each subject only belong to one group. -> True")
@@ -61,7 +64,6 @@ sns.boxplot(t_test_df, x="cond_id", y=f"mean_{y}")
 sns.swarmplot(t_test_df, x="cond_id", y=f"mean_{y}")
 plt.show()
 
-    # 3. Normality: The data for each group should be approximately normal distributed
 # check assumptions 2 and 3 for group 1
 group_1_df = analysis.detect_and_remove_outliers_with_IQR(df=t_test_df, cond_id=group_cond_ids[0], y=y)
 analysis.show_data_distribution(df=group_1_df, x=f"mean_{y}")
@@ -71,8 +73,8 @@ group_2_df = analysis.detect_and_remove_outliers_with_IQR(df=t_test_df, cond_id=
 analysis.show_data_distribution(df=group_2_df, x=f"mean_{y}")
 
 # get array per group
-group_1_array = t_test_df[t_test_df["cond_id"] == group_cond_ids[0]][f"mean_{y}"].to_numpy()
-group_2_array = t_test_df[t_test_df["cond_id"] == group_cond_ids[1]][f"mean_{y}"].to_numpy()
+group_1_array = group_1_df[f"mean_{y}"].to_numpy()
+group_2_array = group_2_df[f"mean_{y}"].to_numpy()
 
 # Welchs t_test
 t_stat, p_val = ttest_ind(a=group_1_array, b=group_2_array, equal_var=False, alternative="two-sided")
@@ -80,14 +82,10 @@ print(f"\nT-Test results for conditions {group_cond_ids} in block {block_id} at 
 print(f"t-statistic: {t_stat:.3f}")
 print(f"p-value: {p_val:.3f}")
 
-# %% show data distribution (histogram, qq-plot, shapiro-wilk test and kolmogrov-smirnoff test)
-distribution_df = means_df[(means_df["cond_id"] == 1) & (means_df["block_id"] == 6) & (means_df["speaker_distance"] == 12)]
-analysis.show_data_distribution(df=distribution_df, x="mean_response_distance")
-
-# %% predict sample size
-group_1, group_2 = analysis.get_group_parameter(df=mean_of_means_df, block_id=6, speaker_distance=12)
-analysis.predict_sample_size(group_1=group_1, group_2=group_2, alpha=0.05, nobs1=15, alternative="two-sided")
-
+# calculate statistical power
+group_1_parameter = analysis.get_group_parameter(array=group_1_array)
+group_2_parameter = analysis.get_group_parameter(array=group_2_array)
+analysis.statistical_power(group_1=group_1_parameter, group_2=group_2_parameter, alpha=0.05, alternative="two-sided")
 
 # %% diagnostic plots
 diagnostic_df = means_df[(means_df["cond_id"] == 1) & (means_df["block_id"] == 6) & (means_df["speaker_distance"] == 12)]
