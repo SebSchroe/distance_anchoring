@@ -158,9 +158,9 @@ def identify_and_remove_response_outliers(df):
             removal_summary.append(f"Sub-{sub_id} in Block-{block_id}: 3sd = {sd3:.3f} -> {len(block_outliers)} response outliers removed.")
             total_removals += len(block_outliers)
                 
-    print(f"\nA total of {total_removals} response outliers have been removed:")
     print("\n".join(removal_summary))
-    print("\nBlock 1 of sub-6 has been removed totally due to too long response time")
+    print(f"\n-> A total of {total_removals} response outliers have been removed")
+    print("-> Block 1 of sub-6 has been removed totally due to too long response time")
     
     return cleaned_df
 
@@ -391,17 +391,13 @@ def get_Basti_df(sub_ids, cond_ids, block_ids):
             except FileNotFoundError:
                 print(f"File not found: {file_path}")
             except pd.errors.EmptyDataError:
-                print(f"Empty file: {file_path}")
+                print(f"Empty file: {file_path}")    
     
-    # filter for specific cond_ids and block_ids
+    print("\nData treatment for Basti_df:")
+    
     df = df[df["cond_id"].isin(cond_ids) & df["block_id"].isin(block_ids)]
     print(f"\nFiltered for conditions {cond_ids} and blocks {block_ids}")
     
-    # get number of sub_ids per condition
-    print("\nn cond_1:", sum(int(sub_id) % 2 != 0 for sub_id in sub_ids))
-    print("n cond_2:", sum(int(sub_id) % 2 == 0 for sub_id in sub_ids))
-    
-    print("\nData treatment for Basti_df:")
     df = df.rename(columns={"led_distance": "response_distance"})
     print("Renamed led_distance to response_distance.")
     
@@ -465,6 +461,11 @@ def merge_dataframes(df_1, df_2):
     
     merged_df = pd.concat([df_1, df_2], axis=0, ignore_index=True)
     
+    print() # empty row
+    for cond_id in [1, 2, 3]:
+        n_subs = len(merged_df[merged_df["cond_id"] == cond_id]["sub_id"].unique().tolist())
+        print(f"Total subs in cond {cond_id} = {n_subs}")    
+    
     return merged_df
 
 def observe_questionnaire(df, x, y, hue):
@@ -484,15 +485,17 @@ def remove_failed_responses(df):
     rows_post = len(df)
     removed_rows = rows_pre - rows_post
     
-    print(f"\nA total of {removed_rows} failed responses have been removed.")
+    print("\nData removal:")
+    print(f"A total of {removed_rows} failed responses have been removed.")
     return df
 
 def data_calculations(df):
     
+    print("\nData calculations for df:")
     df["signed_error"] = df["response_distance"] - df["speaker_distance"] # calculate signed error
     df["absolute_error"] = abs(df["signed_error"]) # calculate absolute error
     df["squared_signed_error"] = df["signed_error"] ** 2 # calculate squared signed error
-    print("\nSigned, absolute and squared signed error per trial have been calculated")
+    print("Signed, absolute and squared signed error per trial have been calculated")
     
     return df
 
