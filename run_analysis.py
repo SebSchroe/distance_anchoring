@@ -1,9 +1,13 @@
 # %% prepare data
 # import modules
 import analysis
-from scipy.stats import shapiro, kstest, ttest_ind
+import numpy as np
+import pandas as pd
+import statsmodels.formula.api as smf
 import seaborn as sns
+import LinearRegDiagnostic
 import matplotlib.pyplot as plt
+import scipy.stats as stats
 
 # set global variables
 sub_ids = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10",
@@ -18,7 +22,7 @@ Oskar_df = analysis.get_Oskar_df()
 df = analysis.merge_dataframes(df_1=Basti_df, df_2=Oskar_df)
 questionnaire_df = analysis.get_questionnaire_df()
 
-# data treatment and calculation of error parameter
+# data treatment and calculation of accuarcy parameter
 df = analysis.data_calculations(df=df)
 
 # remove failed trials (less than 0.5 seconds)
@@ -37,56 +41,196 @@ for sub_id in cleaned_df["sub_id"].unique():
 analysis.observe_questionnaire(df=questionnaire_df, x="cond_id", y="age", hue="gender")
 
 # %% plot averaged data
-y = "response_distance"
+y = "absolute_error"
 means_df, mean_of_means_df = analysis.plot_averaged_data(df=cleaned_df, x="speaker_distance", y=y)
 
-# %% t-test (Welchs t-test aka Two-sample t_test with different std)
+# %% plot average accuracy per block
+remove_condition = (
+    (
+        (cleaned_df["block_id"] == 6) &
+        (cleaned_df["cond_id"] == 1) &
+        (cleaned_df["speaker_distance"].isin([2, 8, 9, 10, 11, 12]))
+    ) |
+    (
+        (cleaned_df["block_id"] == 6) &
+        (cleaned_df["cond_id"] == 2) &
+        (cleaned_df["speaker_distance"].isin([2, 3, 4, 5, 6, 12]))
+    )
+)
+filtered_df = cleaned_df[~remove_condition] # TODO: its a really cool idea to only look at only a speaker subset in block 6 for "interpolation analysis"
+# TODO: maybe also calculate a learning coefficient like the difference value between block 1 and block 6
 
-# TODO: Make a function out of this and make it more interactive -> check every assumption and ask for outlier removal if necessary
 
-# set variables
-block_id = 6
-speaker_distance = 7
-group_cond_ids = [2, 3]
+learning_df = (filtered_df
+               .groupby(["sub_id", "cond_id", "block_id"], as_index=False)
+               .agg(mean_value=("absolute_error", "mean"))
+               )
 
-# get data frame and convert speaker_distance of cond 3 to match other speaker_distances
-means_df_copy = means_df.copy()
-means_df_copy["speaker_distance"] = means_df_copy["speaker_distance"].replace(
-    {2.1: 2, 2.96: 3, 3.84: 4, 4.74: 5, 5.67: 6, 6.62: 7, 7.6: 8, 8.8: 9, 9.64: 10, 10.7: 11, 11.78: 12})  
-t_test_df = means_df_copy[(means_df_copy["cond_id"].isin(group_cond_ids)) & (means_df_copy["block_id"] == block_id) & (means_df_copy["speaker_distance"] == speaker_distance)]
+mean_learning_df = (learning_df
+                    .groupby(["cond_id", "block_id"], as_index=False)
+                    .agg(mean_mean_value=("mean_value", "mean"),
+                         std_mean_value=("mean_value", "std"))
+                    )
+# for sub_id in learning_df["sub_id"].unique():
+#     sub_id_int = int(sub_id)
+#     sub_df = learning_df[learning_df["sub_id"] == sub_id_int]
+#     analysis.plot_data(df=sub_df, x="block_id", y="mean_value",  col=None, row=None, hue="cond_id", kind="lineplot")
 
-# Assumptions:
-print("\nAssumption 1 (Independence): Each subject only belong to one group. -> True")
-print("Assumption 2 (Outliers): The data of each group have no significant outliers.")
-print("Assumption 3 (Normality): The data of each group should be normal distributed.")
+# test hypothesis 2
+# set parameters for the model
+x = "block_id"
+y = "mean_value"
+fixed_group = "cond_id"
+random_group = "sub_id"
 
-sns.boxplot(t_test_df, x="cond_id", y=f"mean_{y}")
-sns.swarmplot(t_test_df, x="cond_id", y=f"mean_{y}")
+# log-transformation if necessary
+learning_df[f"log_{x}"] = np.log(learning_df[x])
+learning_df[f"log_{y}"] = np.log(learning_df[y])
+x = f"log_{x}"
+y = f"log_{y}"
+
+# two way ANOVA with interaction
+ANOVA = smf.ols(formula=f"{y} ~ C({x}) * C({fixed_group})", data=learning_df).fit()
+print(ANOVA.summary())
+
+# diagnostic plots for LM
+cls = LinearRegDiagnostic.LinearRegDiagnostic(ANOVA)
+vif, fig, ax = cls()
+print(vif)
+
+# mixed effects ANOVA with interaction
+ANOVA_mixed_effect = smf.mixedlm(
+    formula=f"{y} ~ C({x}) * C({fixed_group})", # fixed effect
+    groups=learning_df[fixed_group], # random intercept grouping factor 
+    re_formula="~1", # random intercept for each group in random group
+    data=learning_df, # data
+    ).fit(method=["cg"], reml=True) # fitting the model (use reml=False when AIC is needed)
+print(ANOVA_mixed_effect.summary())
+
+AIC = ANOVA_mixed_effect.aic
+print(AIC)
+
+resid_var = ANOVA_mixed_effect.scale
+group_var = ANOVA_mixed_effect.cov_re.iloc[0, 0]
+ICC = group_var / (group_var + resid_var)
+print(ICC)
+
+# diagnostic plots for LMM
+residuals = ANOVA_mixed_effect.resid
+fitted_values = ANOVA_mixed_effect.fittedvalues
+
+# QQ-Plot
+stats.probplot(residuals, dist="norm", plot=plt)
+plt.title("QQ-Plot of Residuals")
 plt.show()
 
-# check assumptions 2 and 3 for group 1
-group_1_df = analysis.detect_and_remove_outliers_with_IQR(df=t_test_df, cond_id=group_cond_ids[0], y=y)
-analysis.show_data_distribution(df=group_1_df, x=f"mean_{y}")
+# Residuals vs fitted
+plt.scatter(fitted_values, residuals, alpha=0.6)
+plt.axhline(0, color='red', linestyle='--')
+plt.xlabel("Fitted Values")
+plt.ylabel("Residuals")
+plt.title("Residuals vs Fitted Values")
+plt.show()
 
-# check assumptions 2 and 3 for group 2
-group_2_df = analysis.detect_and_remove_outliers_with_IQR(df=t_test_df, cond_id=group_cond_ids[1], y=y)
-analysis.show_data_distribution(df=group_2_df, x=f"mean_{y}")
+plt.hist(residuals, bins=20, edgecolor='k', alpha=0.7)
+plt.title("Histogram of Residuals")
+plt.xlabel("Residuals")
+plt.ylabel("Frequency")
+plt.show()
 
-# get array per group
-group_1_array = group_1_df[f"mean_{y}"].to_numpy()
-group_2_array = group_2_df[f"mean_{y}"].to_numpy()
+# visualise data
+sns.lmplot(data=learning_df, x=x, y=y, hue=fixed_group, ci=None, order=1)
 
-# Welchs t_test
-t_stat, p_val = ttest_ind(a=group_1_array, b=group_2_array, equal_var=False, alternative="two-sided")
-print(f"\nT-Test results for conditions {group_cond_ids} in block {block_id} at speaker distance {speaker_distance}.")
-print(f"t-statistic: {t_stat:.3f}")
-print(f"p-value: {p_val:.3f}")
 
-# calculate statistical power
-group_1_parameter = analysis.get_group_parameter(array=group_1_array)
-group_2_parameter = analysis.get_group_parameter(array=group_2_array)
-analysis.statistical_power(group_1=group_1_parameter, group_2=group_2_parameter, alpha=0.05, alternative="two-sided")
+analysis.plot_data(df=learning_df, x="block_id", y="mean_value", col="cond_id", row=None, hue="sub_id", kind="lineplot")
+analysis.plot_with_error_bars(df=mean_learning_df, x="block_id", y="mean_mean_value", yerr="std_mean_value", col="cond_id", row=None)
+analysis.plot_boxplot(df=learning_df, x="cond_id", y="mean_value", col=None, hue="block_id")
 
-# %% diagnostic plots
-diagnostic_df = means_df[(means_df["cond_id"] == 1) & (means_df["block_id"] == 6) & (means_df["speaker_distance"] == 12)]
-analysis.create_diagnostic_plots(df=diagnostic_df, x="speaker_distance", y="mean_response_distance")
+# %% t-test at specific speaker distances (Welchs t-test aka Two-sample t_test with different std)
+analysis.t_test_speaker_distance(df=df, block_id=6, speaker_distance=3, group_ids=[2, 3], y=y)
+
+# %% general linear model and general linear mixed model for hypothesis 1
+
+# create necessary dataframe
+cond_ids = [1, 2, 3]
+block_ids = [1]
+model_df = means_df[(means_df["cond_id"].isin(cond_ids)) & (means_df["block_id"].isin(block_ids))]
+
+# add the perfect line
+# cond_0 = []
+# for speaker_distance in model_df["speaker_distance"].unique():
+#     cond_0_row = {"sub_id": 0, "cond_id": 0, "block_id": 1, "speaker_distance": speaker_distance, "mean_response_distance": speaker_distance, "std_response_distance": np.nan}
+#     cond_0.append(cond_0_row)
+
+# model_df = pd.concat([model_df, pd.DataFrame(cond_0)], ignore_index=True)
+
+# split cond 3 in cond 3 and cond 4
+# Entferne die Einträge mit speaker_distance in [2.1, 11.78]
+filtered_df = model_df[~model_df["speaker_distance"].isin([2.1, 11.78])].copy()
+
+# Passe die cond_id basierend auf speaker_distance an
+filtered_df.loc[filtered_df["speaker_distance"].isin([2.96, 3.84, 4.74, 5.67]), "cond_id"] = 3
+filtered_df.loc[filtered_df["speaker_distance"].isin([7.6, 8.8, 9.64, 10.7]), "cond_id"] = 4
+
+# Klone den Eintrag für speaker_distance == 6.62
+clone = filtered_df[filtered_df["speaker_distance"] == 6.62].copy()
+
+# Weise einmal cond_id = 3 und einmal cond_id = 4 zu
+filtered_df.loc[filtered_df["speaker_distance"] == 6.62, "cond_id"] = 3
+clone["cond_id"] = 4
+
+# Füge den geklonten Eintrag wieder hinzu
+final_df = pd.concat([filtered_df, clone], ignore_index=True)
+
+
+# define parameter for the model
+x = "speaker_distance"
+y= "mean_signed_error"
+fixed_group = "cond_id"
+random_group = "sub_id"
+
+# sort reference group for modelling
+model_df['cond_id'] = model_df['cond_id'].astype('category')
+model_df['cond_id'] = model_df['cond_id'].cat.reorder_categories([3, 1, 2], ordered=True)
+
+# log transform data if necessary
+model_df[f"log_{x}"] = np.log(model_df[f"{x}"])
+model_df[f"log_{y}"] = np.log(model_df[f"{y}"])
+
+x = f"log_{x}"
+y= f"log_{y}"
+
+# linear regression model
+linear_regression = smf.ols(formula=f"{y} ~ {x}", data=model_df).fit() # formula = y ~ x
+print(linear_regression.summary())
+
+# ANCOVA with interaction
+ANCOVA = smf.ols(formula=f"{y} ~ {x} * C({fixed_group})", data=model_df).fit()
+# print(ANCOVA.summary())
+
+# mixed effect linear regression
+linear_mixed_effect = smf.mixedlm(
+    formula=f"{y} ~ {x} * C({fixed_group})", # fixed effect
+    groups=model_df[f"{random_group}"], # random intercept grouping factor 
+    re_formula=f"~{x}", # random slope formula
+    data=model_df, # data
+    ).fit(method=["lbfgs"]) # fitting the model
+
+print(linear_mixed_effect.summary())
+
+resid_var = linear_mixed_effect.scale
+group_var = linear_mixed_effect.cov_re.iloc[0, 0]
+random_slope_variance = linear_mixed_effect.cov_re.loc[x, x]
+ICC = group_var / (group_var + random_slope_variance + resid_var)
+print(ICC)
+
+# generate diagnostic plots
+cls = LinearRegDiagnostic.LinearRegDiagnostic(ANCOVA)
+vif, fig, ax = cls()
+print(vif)
+
+# plot data for visualization
+sns.lmplot(data=model_df, x=x, y=y, hue=fixed_group, ci=None, order=1) # Takeaway: there is no difference in the fitting of all data or mean data
+
+
+

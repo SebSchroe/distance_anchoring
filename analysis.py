@@ -97,8 +97,8 @@ def plot_averaged_data(df, x, y):
                          yerr=f"std_mean_{y}", col="block_id", row="cond_id", baseline=baseline)
 
     # plot boxplot of mean results
-    plot_boxplot(df=means_df, x=x, y=f"mean_{y}",
-                 col="block_id", hue="cond_id", baseline=baseline)
+    # plot_boxplot(df=means_df, x=x, y=f"mean_{y}",
+    #              col="block_id", hue="cond_id", baseline=baseline)
     
     return means_df, mean_of_means_df
 
@@ -272,8 +272,14 @@ def plot_boxplot(df, x, y, col, hue, baseline=False):
         # Set equal aspect ratio
         # ax.set_aspect("equal", adjustable="box")
     
-    g.add_legend(title="Condition")
+    g.add_legend(title=hue)
     plt.show() 
+    
+def plot_boxplot_and_swarmplot(df, x, y):
+    sns.boxplot(df, x=x, y=y)
+    sns.swarmplot(df, x=x, y=y)
+    
+    plt.show()
 
 # distributions
 def show_data_distribution(df, x):
@@ -315,7 +321,46 @@ def show_data_distribution(df, x):
     # else:
     #     print("Fail to reject H0: Data is Gaussian.")
         
+def t_test_speaker_distance(df, block_id, speaker_distance, group_ids, y):
     
+    # get mean data of y from df
+    mean_df = get_means_df(df=df, value_to_mean=y)
+    
+    # convert speaker_distance of cond 3 to match other speaker_distances   
+    mean_df["speaker_distance"] = mean_df["speaker_distance"].replace(
+        {2.1: 2, 2.96: 3, 3.84: 4, 4.74: 5, 5.67: 6, 6.62: 7, 7.6: 8, 8.8: 9, 9.64: 10, 10.7: 11, 11.78: 12})  
+    t_test_df = mean_df[(mean_df["cond_id"].isin(group_ids)) & (mean_df["block_id"] == block_id) & (mean_df["speaker_distance"] == speaker_distance)]
+    
+    # Assumptions:
+    print("\nAssumption 1 (Independence): Each subject only belong to one group. -> True")
+    print("Assumption 2 (Outliers): The data of each group have no significant outliers.")
+    print("Assumption 3 (Normality): The data of each group should be normal distributed.")
+    
+    # plot data for first impression
+    plot_boxplot_and_swarmplot(df=t_test_df, x="cond_id", y=f"mean_{y}")
+    
+    # check assumptions 2 and 3 for group 1
+    group_1_df = detect_and_remove_outliers_with_IQR(df=t_test_df, cond_id=group_ids[0], y=y)
+    show_data_distribution(df=group_1_df, x=f"mean_{y}")
+    
+    # check assumptions 2 and 3 for group 2
+    group_2_df = detect_and_remove_outliers_with_IQR(df=t_test_df, cond_id=group_ids[1], y=y)
+    show_data_distribution(df=group_2_df, x=f"mean_{y}")
+    
+    # get array per group
+    group_1_array = group_1_df[f"mean_{y}"].to_numpy()
+    group_2_array = group_2_df[f"mean_{y}"].to_numpy()
+    
+    # Welchs t_test
+    t_stat, p_val = ttest_ind(a=group_1_array, b=group_2_array, equal_var=False, alternative="two-sided")
+    print(f"\nT-Test results for conditions {group_ids} in block {block_id} at speaker distance {speaker_distance}.")
+    print(f"t-statistic: {t_stat:.3f}")
+    print(f"p-value: {p_val:.3f}")
+    
+    # calculate statistical power
+    group_1_parameter = get_group_parameter(array=group_1_array)
+    group_2_parameter = get_group_parameter(array=group_2_array)
+    statistical_power(group_1=group_1_parameter, group_2=group_2_parameter, alpha=0.05, alternative="two-sided")  
 
 def get_group_parameter(array):
     
@@ -396,7 +441,7 @@ def get_Basti_df(sub_ids, cond_ids, block_ids):
     print("\nData treatment for Basti_df:")
     
     df = df[df["cond_id"].isin(cond_ids) & df["block_id"].isin(block_ids)]
-    print(f"\nFiltered for conditions {cond_ids} and blocks {block_ids}")
+    print(f"Filtered for conditions {cond_ids} and blocks {block_ids}")
     
     df = df.rename(columns={"led_distance": "response_distance"})
     print("Renamed led_distance to response_distance.")
