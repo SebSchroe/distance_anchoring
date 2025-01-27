@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 import scipy.stats as stats
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 from statsmodels.graphics.tsaplots import plot_acf
+import statsmodels.api as sm
+
 
 # for Python R Bridge
 import os
@@ -51,7 +53,19 @@ cleaned_df = analysis.identify_and_remove_response_outliers(df=df)
 
 # %% plot averaged data
 y = "response_distance"
-means_df, mean_of_means_df = analysis.plot_averaged_data(df=cleaned_df, x="speaker_distance", y=y)
+means_df = analysis.get_means_df(df=cleaned_df, value_to_mean=y, mean_by="speaker_distance")
+
+grey_palette = sns.color_palette("grey", n_colors=1)
+baseline = np.arange(2, 13, 1)
+
+grid = sns.FacetGrid(data=means_df, col="block_id", row="cond_id", palette="tab10", margin_titles=True)
+grid.map_dataframe(sns.lineplot, "speaker_distance", f"mean_{y}", hue="sub_id", estimator=None, lw=1, palette=grey_palette, alpha=0.3)
+grid.map_dataframe(sns.pointplot, "speaker_distance", f"mean_{y}", errorbar="sd", native_scale=True, lw=1.5, markersize=5, capsize=0.5, errwidth=1)
+
+for ax in grid.axes.flat:
+    ax.plot(baseline, baseline, ls="--", color="black", alpha=0.7) # add 1:1 line through the origin
+    
+plt.show()
 
 # %% plot individual raw data per participant and save the plot
 for sub_id in cleaned_df["sub_id"].unique():
@@ -60,98 +74,195 @@ for sub_id in cleaned_df["sub_id"].unique():
 # %% observe questionnaire at its own
 analysis.observe_questionnaire(df=questionnaire_df, x="cond_id", y="age", hue="gender")
 
-# %% hypothesis 1 analysis
+# %% hypothesis 1  analysis (part I)
 # get dataframe as needed
-means_df = analysis.get_means_df(df=cleaned_df, value_to_mean="signed_error")
-model_df = means_df[(means_df["cond_id"].isin([1, 2, 3])) & (means_df["block_id"].isin([1]))]
+means_df = analysis.get_means_df(df=cleaned_df, value_to_mean="response_distance", mean_by="speaker_distance")
+include_condition = (
+    ((means_df["cond_id"].isin([1, 2])) &
+     (means_df["block_id"] == 1)
+     ) |
+    ((means_df["cond_id"] == 3) &
+     (means_df["block_id"] == 2)
+     ))
 
-# add the perfect line
-# cond_0 = []
-# for speaker_distance in model_df["speaker_distance"].unique():
-#     cond_0_row = {"sub_id": 0, "cond_id": 0, "block_id": 1, "speaker_distance": speaker_distance, "mean_response_distance": speaker_distance, "std_response_distance": np.nan}
-#     cond_0.append(cond_0_row)
+filtered_df = means_df[include_condition].copy() # filter data by inclusion conditions
+filtered_df["block_id"] = filtered_df["block_id"].replace({2: 1}) # set block_id of cond 3 to same level as cond 1 and 2
 
-# model_df = pd.concat([model_df, pd.DataFrame(cond_0)], ignore_index=True)
+# remove outliers
+filtered_df = filtered_df[filtered_df["sub_id"] != 15] # remove sub 15 as a outlier
+
+model_1_df = filtered_df.copy()
 
 # define parameter for the model
 x = "speaker_distance"
-y= "mean_signed_error"
+y= "mean_response_distance"
 fixed_group = "cond_id"
 random_group = "sub_id"
 
 # sort reference group for modelling
-model_df['cond_id'] = model_df['cond_id'].astype('category')
-model_df['cond_id'] = model_df['cond_id'].cat.reorder_categories([3, 1, 2], ordered=True)
+model_1_df['cond_id'] = model_1_df['cond_id'].astype('category')
+model_1_df['cond_id'] = model_1_df['cond_id'].cat.reorder_categories([3, 1, 2], ordered=True)
+
 
 # log transform data if necessary
-# model_df[f"log_{x}"] = np.log(model_df[f"{x}"])
-# model_df[f"log_{y}"] = np.log(model_df[f"{y}"])
+model_1_df[f"log_{x}"] = np.log(model_1_df[f"{x}"])
+model_1_df[f"log_{y}"] = np.log(model_1_df[f"{y}"])
+x = f"log_{x}"
+y= f"log_{y}"
 
-# x = f"log_{x}"
-# y= f"log_{y}"
+
+for centered_at in [5, 9]:
+    
+    print(f"\nResults for x centered at {centered_at}:")
+    # create temp dataframe
+    temp_df = model_1_df.copy()
+    # centre x for new intercept intersection
+    temp_df["log_centered_speaker_distance"] = temp_df["log_speaker_distance"] - np.log(centered_at)
+    x = "log_centered_speaker_distance"
+    
+    # mixed effect ANCOVA with interaction and random slope, intercept
+    model_1 = smf.mixedlm(
+        formula=f"{y} ~ {x} * C({fixed_group})", # fixed effect
+        groups=temp_df[f"{random_group}"], # random intercept grouping factor 
+        re_formula="~1", # random intercept for each group in random group
+        data=temp_df, # data
+        ).fit(method=["powell", "lbfgs"]) # fitting the model
+    
+    # get all the good analysis stuff
+    analysis.LMM_analysis(model_df=model_1_df, fitted_model=model_1, x="log_speaker_distance")
 
 # ANCOVA with interaction
-ANCOVA = smf.ols(formula=f"{y} ~ {x} * C({fixed_group})", data=model_df).fit()
-print(ANCOVA.summary())
+# ANCOVA = smf.ols(formula=f"{y} ~ {x} * C({fixed_group})", data=model_1_df).fit()
+# print(ANCOVA.summary())
 
-# generate diagnostic plots
-cls = LinearRegDiagnostic.LinearRegDiagnostic(ANCOVA)
-vif, fig, ax = cls()
-print(vif)
+# # generate diagnostic plots
+# cls = LinearRegDiagnostic.LinearRegDiagnostic(ANCOVA)
+# vif, fig, ax = cls()
+# print(vif)
 
 # R model
-# model = lmer(y ~ x * fixed_group categorical + (x | random_group))
+# model = lmer(y ~ x * fixed_group categorical + (1 | random_group))
 
-# mixed effect ANCOVA with interaction and random slope, intercept
-model_1 = smf.mixedlm(
-    formula=f"{y} ~ {x} * C({fixed_group})", # fixed effect
-    groups=model_df[f"{random_group}"], # random intercept grouping factor 
-    re_formula=f"~{x}", # random slope formula
-    data=model_df, # data
-    ).fit(method=["lbfgs"]) # fitting the model
+#plot data to visualize hypothesis 1 (part I) results
 
-print(model_1.summary())
+# extract coefficients from model summary
+coefficients = {1: {"k": 0.152 + 0.573, "a": 0.887 - 0.108},
+                2: {"k": 0.152 + 1.066, "a": 0.887 - 0.455},
+                3: {"k": 0.152, "a": 0.887}}
 
-# diagnostic plots for LMM
-residuals = model_1.resid
-fitted_values = model_1.fittedvalues
+# create long df with fitted curves
+fit_data = []
+for cond_id, params in coefficients.items():
+    # simulate x_values
+    x_values = np.linspace(model_1_df[model_1_df["cond_id"] == cond_id]["speaker_distance"].min(), model_1_df[model_1_df["cond_id"] == cond_id]["speaker_distance"].max(), 100)
+    
+    # calculate y values
+    k = params["k"]
+    a = params["a"]
+    y_fit = np.exp(k) * x_values**a
+    
+    # add data to dataframe
+    fit_data.extend([(cond_id, x, y) for x, y in zip(x_values, y_fit)])
+model_1_fit_df = pd.DataFrame(fit_data, columns=["cond_id", "x_values", "y_values"])
 
-# linearity of the predictor
-sns.residplot(x=model_df[x], y=residuals, lowess=True, line_kws=dict(color="r"))
-plt.xlabel("speaker_distance")
-plt.ylabel("Residuals")
-plt.title("Residuals vs speaker_distance (linearity)")
+# change order of conditions
+model_1_fit_df['cond_id'] = model_1_fit_df['cond_id'].astype('category')
+model_1_fit_df['cond_id'] = model_1_fit_df['cond_id'].cat.reorder_categories([3, 1, 2], ordered=True)
+
+# prepare plotting
+model_1_df["cond_id"] = model_1_df["cond_id"].map({1: "naive 3-7 m (no view)", 2:"naive 7-11 m (no view)", 3:"naive 2-12 m (limited view)"})
+model_1_fit_df["cond_id"] = model_1_fit_df["cond_id"].map({1: "naive 3-7 m (no view)", 2:"naive 7-11 m (no view)", 3:"naive 2-12 m (limited view)"})
+
+
+baseline = np.arange(2, 13, 1)
+ticks = np.arange(2, 13, 1).tolist()
+sns.set_theme(style="whitegrid", context="notebook", palette="colorblind")
+plt.figure(figsize=(6, 6))
+
+# plot data
+sns.pointplot(data=model_1_df, x="speaker_distance", y="mean_response_distance", hue="cond_id", errorbar="sd", 
+              native_scale=True, ls="None", markersize=5, capsize=5, errwidth=1)
+sns.lineplot(data=model_1_fit_df, x="x_values", y="y_values", hue="cond_id", 
+             legend=False)
+sns.lineplot(x=baseline, y=baseline, linestyle="--", color="grey")
+
+# adjust layout
+plt.xscale("log")
+plt.yscale("log")
+plt.xlabel("log speaker distance [m]")
+plt.ylabel("log response distance [m]")
+plt.xticks(ticks, labels=[str(tick) for tick in ticks])
+plt.yticks(ticks, labels=[str(tick) for tick in ticks])
+plt.legend(title="Condition")
+plt.grid(True, which="both", linestyle="--", linewidth=0.5)
+plt.axis("square")
+plt.tight_layout()
 plt.show()
 
-# QQ-Plot - normality
-stats.probplot(residuals, dist="norm", plot=plt)
-plt.title("QQ-Plot of Residuals (normality)")
-plt.show()
+# %% hypothesis 1 (part II)
+# get dataframe
+means_df = analysis.get_means_df(df=cleaned_df, value_to_mean="response_distance", mean_by="speaker_distance")
+include_condition = (
+    ((means_df["cond_id"].isin([1, 2])) &
+     (means_df["block_id"].isin([1, 2]))
+     )
+    )
+filtered_df = means_df[include_condition].copy() # filter data by inclusion conditions
 
-# Residuals vs fitted - homoscedasticity
-sns.residplot(x=fitted_values, y=residuals, lowess=True, line_kws=dict(color="r"))
-plt.xlabel("Fitted Values")
-plt.ylabel("Residuals")
-plt.title("Residuals vs Fitted Values (homoscedasticity)")
-plt.show()
+# remove outliers
+filtered_df = filtered_df[filtered_df["sub_id"] != 15] # remove sub 15 as a outlier
 
-# independency of residuals
-plot_acf(residuals)
-plt.title("Autocorrelation of Residuals (independency)")
-plt.show()
+model_1_df = filtered_df.copy()
 
-# calculate ICC
-resid_var = model_1.scale
-group_var = model_1.cov_re.iloc[0, 0]
-random_slope_variance = model_1.cov_re.loc[x, x]
-ICC = group_var / (group_var + random_slope_variance + resid_var)
-print(ICC)
+# define parameter for the model
+x = "speaker_distance"
+y= "mean_response_distance"
+fixed_group = "block_id"
+random_group = "sub_id"
 
-# plot data for visualization
-sns.lmplot(data=model_df, x=x, y=y, hue=fixed_group, ci=None, order=1) # Takeaway: there is no difference in the fitting of all data or mean data
+# log transform data to fit power function
+model_1_df[f"log_{x}"] = np.log(model_1_df[f"{x}"])
+model_1_df[f"log_{y}"] = np.log(model_1_df[f"{y}"])
+x = f"log_{x}"
+y= f"log_{y}"
+
+# mixed effect ANCOVA with interaction and random intercept
+for cond_id in [1, 2]:
+    temp_df = model_1_df[model_1_df["cond_id"] == cond_id].copy()
+    
+    # center intercept at certain x
+    if cond_id == 1:
+        centered_at = 5
+    else:
+        centered_at = 9
+        
+    temp_df["log_centered_speaker_distance"] = temp_df["log_speaker_distance"] - np.log(centered_at)    
+    x = "log_centered_speaker_distance"
+    
+    # model
+    print(f"\nResults for condition {cond_id} centered at x = {centered_at}")
+    model_1 = smf.mixedlm(
+        formula=f"{y} ~ {x} * C({fixed_group})", # fixed effect
+        groups=temp_df[f"{random_group}"], # random intercept grouping factor 
+        re_formula="~1", # random intercept for each group in random group
+        data=temp_df, # data
+        ).fit(method=["powell", "lbfgs"]) # fitting the model
+    
+    # get all the good analysis stuff    
+    analysis.LMM_analysis(model_df=temp_df, fitted_model=model_1, x="log_speaker_distance")
+    
+# %% plot data for hypothesis 1 (part II)
+
+
 
 
 # %% hypothesis 2 analysis
+# set variables
+x = "block_id"
+y= "absolute_error"
+fixed_group = "cond_id"
+random_group = "sub_id"
+
 # get dataframe as it is needed (for block 6 only speaker of speaker subset used)
 remove_condition = (
     (
@@ -169,18 +280,16 @@ filtered_df = cleaned_df[~remove_condition]
 
 learning_df = (filtered_df
                .groupby(["sub_id", "cond_id", "block_id"], as_index=False)
-               .agg(mean_value=("absolute_error", "mean"))
+               .agg(mean_value=(y, "mean"))
                )
-learning_df = learning_df.rename(columns={"mean_value": "mean_absolute_error"})
 
-# test hypothesis 2
-# set parameters for the model
-x = "block_id"
-y = "mean_absolute_error"
-fixed_group = "cond_id"
-random_group = "sub_id"
+y= f"mean_{y}"
+learning_df = learning_df.rename(columns={"mean_value": y})
 
-# log-transformation if necessary
+# exclude block 1
+learning_df = learning_df[learning_df["block_id"] != 1]
+
+# data need to be log-transformed to make residuals normal distributed
 learning_df[f"log_{y}"] = np.log(learning_df[y])
 y = f"log_{y}"
 
@@ -194,13 +303,13 @@ ro.globalenv["learning_df"] = pandas2ri.py2rpy(learning_df)
 print(ro.r("head(learning_df)")) # check dataframe
 
 # mixed effect two way ANOVA with ineraction in R
-ro.r('''
+ro.r(f'''
 # set independent variables as factor
 learning_df$block_id <- as.factor(learning_df$block_id)
 learning_df$cond_id <- as.factor(learning_df$cond_id)
 
 # craft the model     
-model <- lmer(log_mean_absolute_error ~ block_id * cond_id + (1|sub_id), data = learning_df)
+model <- lmer({y} ~ block_id * cond_id + (1|sub_id), data = learning_df)
 
 # tukey hsd post hoc test
 tukey <- emmeans(model, pairwise ~ block_id * cond_id, adjust = "tukey")
@@ -216,27 +325,46 @@ print(ro.r("summary(tukey)"))
 
 
 # mixed effects ANOVA with interaction
-mixed_effect_ANOVA = smf.mixedlm(
+model_2 = smf.mixedlm(
     formula=f"{y} ~ C({x}) * C({fixed_group})", # fixed effect
     groups=learning_df[fixed_group], # random intercept grouping factor 
     re_formula="~1", # random intercept for each group in random group
     data=learning_df, # data
     ).fit(method=["lbfgs"], reml=True) # fitting the model (use reml=False when AIC is needed)
-print(mixed_effect_ANOVA.summary())
+print(model_2.summary())
 
-resid_var = mixed_effect_ANOVA.scale
-group_var = mixed_effect_ANOVA.cov_re.iloc[0, 0]
-ICC = group_var / (group_var + resid_var)
-print(ICC)
+# calculate marginal, conditional R2 and ICC
+var_resid = model_2.scale # var(e)
+var_fixed = model_2.fittedvalues.var() # var(f)
+var_random = model_2.cov_re.iloc[0, 0]# var(r)
+
+r2_marginal = var_fixed / (var_fixed + var_random + var_resid) # r2 of fixed effects
+r2_conditional = (var_fixed + var_random) / (var_fixed + var_random + var_resid) # r2 of fixed and random effects
+ICC = var_random / (var_random + var_resid) # intraclass correlation coefficient
+
+print(f"Marginal R²: {r2_marginal:.3f}")
+print(f"Conditional R²: {r2_conditional:.3f}")
+print(f"ICC: {ICC:.3f}")
 
 # diagnostic plots for LMM
-residuals = mixed_effect_ANOVA.resid
-fitted_values = mixed_effect_ANOVA.fittedvalues
+sns.reset_orig()
+residuals = model_2.resid
+fitted_values = model_2.fittedvalues
+
+# linearity of the predictor
+sns.residplot(x=learning_df[x], y=residuals, lowess=True, line_kws=dict(color="r"))
+plt.xlabel(f"{x}")
+plt.ylabel("Residuals")
+plt.title(f"Residuals vs {x} (linearity)")
+plt.show()
 
 # QQ-Plot - normality
 stats.probplot(residuals, dist="norm", plot=plt)
 plt.title("QQ-Plot of Residuals (normality)")
 plt.show()
+
+# more normality tests
+analysis.normality_test(residuals)
 
 # Residuals vs fitted - homoscedasticity
 sns.residplot(x=fitted_values, y=residuals, lowess=True, line_kws=dict(color="r"))
@@ -251,11 +379,207 @@ plt.title("Autocorrelation of Residuals (independency)")
 plt.show()
 
 # visualise data
-analysis.plot_boxplot(df=learning_df, x="cond_id", y=y, col=None, hue="block_id")
+# prepare visualisation
+sns.set_theme(style="whitegrid", context="notebook", palette="colorblind")
+plt.figure(figsize=(6, 6))
+cond_id_mapping = {1: "dist. 3-7 m", 2: "dist. 7-11 m", 3: "dist. 2-12 m"}
+block_id_mapping = {1: "naive (no view)", 2: "naive", 4: "1 x trained", 6: "2 x trained"}
+
+sns.catplot(data=learning_df.replace({"cond_id": cond_id_mapping, "block_id": block_id_mapping}),
+            x="cond_id", y=y, hue="block_id", 
+            kind="box", palette="tab10", legend_out=False)
+
+plt.xlabel(None)
+plt.legend(title="Test block")
+plt.show()
+
 
 # %% hypothesis 3 analysis
+# set variables
+sns.reset_orig()
+x = "speaker_distance"
+y= "response_distance"
+fixed_group = "condition"
+random_group = "sub_id"
 
-# TODO: thoughts: I do two ANCOVA: 1. compare cond_1 block 6 -> 7 - 11 with cond_2 block 6 -> 7 - 11 and cond_2 block 1 vice versa
+# create necessary df
+# first half speaker_distance
+include_condition = (
+    (
+         (cleaned_df["cond_id"].isin([1, 2])) &
+         (cleaned_df["block_id"] == 6) &
+         (cleaned_df["speaker_distance"].isin([3, 4, 5, 6, 7]))
+     ) |
+    
+    (
+        (cleaned_df["cond_id"] == 1) &
+        (cleaned_df["block_id"] == 1)
+    )
+)
+filtered_df = cleaned_df[include_condition] # filter by inclusion conditions
+df_1 = analysis.get_means_df(filtered_df, y) # calculate mean values per speaker distance
+
+df_1["condition"] = None
+df_1.loc[(df_1["block_id"] == 1) & (df_1["cond_id"] == 1), "condition"] = "naive"
+df_1.loc[(df_1["block_id"] == 6) & (df_1["cond_id"] == 1), "condition"] = "trained"
+df_1.loc[(df_1["block_id"] == 6) & (df_1["cond_id"] == 2), "condition"] = "extrapolated"
+df_1["subset"] = "dist. 3-7 m"
+
+# second half
+include_condition = (
+    (
+         (cleaned_df["cond_id"].isin([1, 2])) &
+         (cleaned_df["block_id"] == 6) &
+         (cleaned_df["speaker_distance"].isin([7, 8, 9, 10, 11]))
+     ) |
+    
+    (
+        (cleaned_df["cond_id"] == 2) &
+        (cleaned_df["block_id"] == 1)
+    )
+)
+filtered_df = cleaned_df[include_condition] # filter by inclusion conditions
+df_2 = analysis.get_means_df(filtered_df, y) # calculate mean values per speaker distance
+
+# group by condition
+df_2["condition"] = None
+df_2.loc[(df_2["block_id"] == 1) & (df_2["cond_id"] == 2), "condition"] = "naive"
+df_2.loc[(df_2["block_id"] == 6) & (df_2["cond_id"] == 2), "condition"] = "trained"
+df_2.loc[(df_2["block_id"] == 6) & (df_2["cond_id"] == 1), "condition"] = "extrapolated"
+df_2["subset"] = "dist. 7-11 m"
+
+# combine both df's
+model_3_df = pd.concat([df_1, df_2], axis=0, ignore_index=True)
+y = f"mean_{y}"
+
+# sort reference group for modelling
+model_3_df['condition'] = model_3_df['condition'].astype('category')
+model_3_df['condition'] = model_3_df['condition'].cat.reorder_categories(["naive", "trained", "extrapolated"], ordered=True)
+
+# log transform data if necessary
+model_3_df[f"log_{x}"] = np.log(model_3_df[f"{x}"]) # log transformation doesn't change nonlinearity
+model_3_df[f"log_{y}"] = np.log(model_3_df[f"{y}"])
+x = f"log_{x}"
+y= f"log_{y}"
+
+# R: model_3 <- lmer(log_mean_response_distance ~ log_speaker_distance * condition + (1 + log_speaker_distance | sub_id), data = model_3_df)
+
+for subset in model_3_df["subset"].unique():
+    
+    print(f"\nModel analysis for speaker subset {subset}:")
+    subset_df = model_3_df[model_3_df["subset"] == subset]
+    
+    # mixed effect ANCOVA with interaction and random slope, intercept
+    model_3 = smf.mixedlm(
+        formula=f"{y} ~ {x} * C({fixed_group})", # fixed effect
+        groups=subset_df[f"{random_group}"], # random intercept grouping factor 
+        re_formula=f"~{x}", # random slope formula
+        data=subset_df, # data
+        ).fit(method=["lbfgs"]) # fitting the model
+    
+    print(model_3.summary())
+    
+    # calculate marginal, conditional R2 and ICC
+    var_resid = model_3.scale # var(e)
+    var_fixed = model_3.fittedvalues.var() # var(f)
+    var_random = model_3.cov_re.iloc[0, 0]# var(r)
+    
+    r2_marginal = var_fixed / (var_fixed + var_random + var_resid) # r2 of fixed effects
+    r2_conditional = (var_fixed + var_random) / (var_fixed + var_random + var_resid) # r2 of fixed and random effects
+    ICC = var_random / (var_random + var_resid) # intraclass correlation coefficient
+    
+    print(f"Marginal R²: {r2_marginal:.3f}")
+    print(f"Conditional R²: {r2_conditional:.3f}")
+    print(f"ICC: {ICC:.3f}")
+    
+    # diagnostic plots for LMM
+    residuals = model_3.resid
+    fitted_values = model_3.fittedvalues
+    
+    # linearity of the predictor
+    sns.residplot(x=subset_df[x], y=residuals, lowess=True, line_kws=dict(color="r"))
+    plt.xlabel(x)
+    plt.ylabel("Residuals")
+    plt.title("Residuals vs speaker_distance (linearity)")
+    plt.show()
+    
+    # QQ-Plot - normality
+    stats.probplot(residuals, dist="norm", plot=plt)
+    plt.title("QQ-Plot of Residuals (normality)")
+    plt.show()
+    
+    # more normality tests
+    analysis.normality_test(residuals)
+    
+    # Residuals vs fitted - homoscedasticity
+    sns.residplot(x=fitted_values, y=residuals, lowess=True, line_kws=dict(color="r"))
+    plt.xlabel("Fitted Values")
+    plt.ylabel("Residuals")
+    plt.title("Residuals vs Fitted Values (homoscedasticity)")
+    plt.show()
+    
+    # independency of residuals
+    plot_acf(residuals)
+    plt.title("Autocorrelation of Residuals (independency)")
+    plt.show()
+    
+    # data visualisation
+    if subset == "dist. 3-7 m":
+        baseline = np.arange(3, 8, 1)
+        ticks = np.arange(3, 11, 1).tolist()
+    else:
+        baseline = np.arange(7, 12, 1)
+        ticks = np.arange(6, 12, 1).tolist()
+    
+    plt.figure(figsize=(8, 8))
+    sns.lmplot(data=subset_df, x="speaker_distance", y="mean_response_distance", hue=fixed_group, ci=None, markers="none", legend=False)
+    sns.pointplot(data=subset_df, x="speaker_distance", y="mean_response_distance", hue=fixed_group, errorbar="sd",
+                  native_scale=True, ls="None", markersize=5, capsize=0.1, errwidth=1, dodge=True)
+    sns.lineplot(x=baseline, y=baseline, linestyle="--", color="grey")
+    
+    plt.xlabel("log speaker distance [m]")
+    plt.ylabel("log response distance [m]")
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.xticks(ticks, labels=[str(tick) for tick in ticks])
+    plt.yticks(ticks, labels=[str(tick) for tick in ticks])
+    plt.grid(True, which="both", linestyle="--", linewidth=0.5)
+    plt.axis("square")
+    plt.tight_layout()
+    plt.show()
+
+# %% new version hypothesis 3
+# set variables
+x = "condition"
+y= "absolute_error"
+
+# create necessary df
+# first half speaker_distance
+include_condition = (
+    (
+         (cleaned_df["cond_id"].isin([1, 2])) &
+         (cleaned_df["block_id"] == 6) &
+         (cleaned_df["speaker_distance"].isin([3, 4, 5, 6, 7]))
+     ) |
+    
+    (
+        (cleaned_df["cond_id"] == 1) &
+        (cleaned_df["block_id"] == 1)
+    )
+)
+filtered_df = cleaned_df[include_condition]
+df_1 = (filtered_df
+               .groupby(["sub_id", "cond_id", "block_id"], as_index=False)
+               .agg(mean_value=(y, "mean"))
+               )
+df_1 = df_1.rename(columns={"mean_value": f"mean_{y}"})
+
+df_1["condition"] = None
+df_1.loc[(df_1["block_id"] == 1) & (df_1["cond_id"] == 1), "condition"] = "naive"
+df_1.loc[(df_1["block_id"] == 6) & (df_1["cond_id"] == 1), "condition"] = "trained"
+df_1.loc[(df_1["block_id"] == 6) & (df_1["cond_id"] == 2), "condition"] = "extrapolated"
+df_1["subset"] = "dist. 3-7 m"
+
 # second half
 include_condition = (
     (
@@ -271,132 +595,63 @@ include_condition = (
 )
 filtered_df = cleaned_df[include_condition]
 
-model_3_df = analysis.get_means_df(filtered_df, "response_distance")
+df_2 = (filtered_df
+               .groupby(["sub_id", "cond_id", "block_id"], as_index=False)
+               .agg(mean_value=(y, "mean"))
+               )
+df_2 = df_2.rename(columns={"mean_value": f"mean_{y}"})
 
-# change condition names
-model_3_df["condition"] = None
-model_3_df.loc[(model_3_df["block_id"] == 1) & (model_3_df["cond_id"] == 2), "condition"] = "naive"
-model_3_df.loc[(model_3_df["block_id"] == 6) & (model_3_df["cond_id"] == 2), "condition"] = "trained"
-model_3_df.loc[(model_3_df["block_id"] == 6) & (model_3_df["cond_id"] == 1), "condition"] = "extrapolated"
+# group by condition
+df_2["condition"] = None
+df_2.loc[(df_2["block_id"] == 1) & (df_2["cond_id"] == 2), "condition"] = "naive"
+df_2.loc[(df_2["block_id"] == 6) & (df_2["cond_id"] == 2), "condition"] = "trained"
+df_2.loc[(df_2["block_id"] == 6) & (df_2["cond_id"] == 1), "condition"] = "extrapolated"
+df_2["subset"] = "dist. 7-11 m"
 
-# # first half
-# include_condition = (
-#     (
-#          (cleaned_df["cond_id"].isin([1, 2])) &
-#          (cleaned_df["block_id"] == 6) &
-#          (cleaned_df["speaker_distance"].isin([3, 4, 5, 6, 7]))
-#      ) |
-    
-#     (
-#         (cleaned_df["cond_id"] == 1) &
-#         (cleaned_df["block_id"] == 1)
-#     )
-# )
-# filtered_df = cleaned_df[include_condition]
+# combine both df's
+model_3_df = pd.concat([df_1, df_2], axis=0, ignore_index=True)
+y = f"mean_{y}"
 
-# model_3_df = analysis.get_means_df(filtered_df, "response_distance")
-
-# change condition names
-# model_3_df["condition"] = None
-# model_3_df.loc[(model_3_df["block_id"] == 1) & (model_3_df["cond_id"] == 1), "condition"] = "naive"
-# model_3_df.loc[(model_3_df["block_id"] == 6) & (model_3_df["cond_id"] == 1), "condition"] = "trained"
-# model_3_df.loc[(model_3_df["block_id"] == 6) & (model_3_df["cond_id"] == 2), "condition"] = "extrapolated"
-
-
-# define parameter for the model
-x = "speaker_distance"
-y= "mean_response_distance"
-fixed_group = "condition"
-random_group = "sub_id"
+# log transformation
+model_3_df[f"log_{y}"] = np.log(model_3_df[y])
+y = f"log_{y}"
 
 # sort reference group for modelling
 model_3_df['condition'] = model_3_df['condition'].astype('category')
-model_3_df['condition'] = model_3_df['condition'].cat.reorder_categories(["extrapolated", "trained", "naive"], ordered=True)
+model_3_df['condition'] = model_3_df['condition'].cat.reorder_categories(["naive", "trained", "extrapolated"], ordered=True)
 
-# log transform data if necessary
-model_3_df[f"log_{x}"] = np.log(model_3_df[f"{x}"]) # log transformation doesn't change nonlinearity
-model_3_df[f"log_{y}"] = np.log(model_3_df[f"{y}"])
-x = f"log_{x}"
-y= f"log_{y}"
 
-# ANCOVA with interaction
-ANCOVA = smf.ols(formula=f"{y} ~ {x} * C({fixed_group})", data=model_3_df).fit()
-print(ANCOVA.summary())
+# model each speaker subset seperately
+formula = f"{y} ~ C({x})"
+for subset in model_3_df["subset"].unique():
+    
+    print(f"\nModel analysis for speaker subset {subset}:")
+    
+    subset_df = model_3_df[model_3_df["subset"] == subset]
+    # create model
+    ANOVA = smf.ols(formula=formula, data=subset_df).fit()
+    anova_table = sm.stats.anova_lm(ANOVA, typ=2)
+    print(anova_table)
+    r2 = ANOVA.rsquared
+    print(f"r2: {r2:.3f}")
 
-# generate diagnostic plots
-cls = LinearRegDiagnostic.LinearRegDiagnostic(ANCOVA)
-vif, fig, ax = cls()
-print(vif)
+    # check assuptions
+    cls = LinearRegDiagnostic.LinearRegDiagnostic(ANOVA)
+    vif, fig, ax = cls()
+    # print(vif)
+    
+    # more normality tests
+    residuals = ANOVA.resid
+    analysis.normality_test(residuals)
 
-# mixed effect ANCOVA with interaction and random slope, intercept
-model_3 = smf.mixedlm(
-    formula=f"{y} ~ {x} * C({fixed_group})", # fixed effect
-    groups=model_3_df[f"{random_group}"], # random intercept grouping factor 
-    re_formula=f"~{x}", # random slope formula
-    data=model_3_df, # data
-    ).fit(method=["lbfgs"]) # fitting the model
+    # tukey hsd post hoc test
+    tukey_result = pairwise_tukeyhsd(endog=subset_df[y], groups=subset_df[x])
+    print("\n", tukey_result)
 
-print(model_3.summary())
+# visualize data
+sns.set_theme(style="whitegrid", context="notebook", palette="colorblind")
+sns.catplot(data=model_3_df, x=x, y=y, col="subset", hue="cond_id", kind="box", palette="tab10")
 
-# calculare marginal and conditional R2
-var_fixed = model_3.fittedvalues.var()
-random_effects = model_3.random_effects
-var_random = sum([values.var() for values in random_effects.values()])
-var_resid = model_3.scale
-
-r2_marginal = var_fixed / (var_fixed + var_random + var_resid) # r2 of fixed effects
-r2_conditional = (var_fixed + var_random) / (var_fixed + var_random + var_resid) # r2 of fixed and random effects
-
-print(f"Marginal R²: {r2_marginal:.3f}")
-print(f"Conditional R²: {r2_conditional:.3f}")
-
-# diagnostic plots for LMM
-residuals = model_3.resid
-fitted_values = model_3.fittedvalues
-
-# linearity of the predictor
-sns.residplot(x=model_3_df[x], y=residuals, lowess=True, line_kws=dict(color="r"))
-plt.xlabel(x)
-plt.ylabel("Residuals")
-plt.title("Residuals vs speaker_distance (linearity)")
-plt.show()
-
-# QQ-Plot - normality
-stats.probplot(residuals, dist="norm", plot=plt)
-plt.title("QQ-Plot of Residuals (normality)")
-plt.show()
-
-# Residuals vs fitted - homoscedasticity
-sns.residplot(x=fitted_values, y=residuals, lowess=True, line_kws=dict(color="r"))
-plt.xlabel("Fitted Values")
-plt.ylabel("Residuals")
-plt.title("Residuals vs Fitted Values (homoscedasticity)")
-plt.show()
-
-# independency of residuals
-plot_acf(residuals)
-plt.title("Autocorrelation of Residuals (independency)")
-plt.show()
-
-# calculate ICC
-resid_var = model_3.scale
-group_var = model_3.cov_re.iloc[0, 0]
-random_slope_variance = model_3.cov_re.loc[x, x]
-ICC = group_var / (group_var + random_slope_variance + resid_var)
-print(f"ICC of {random_group}: {ICC:.2f}")
-
-# data visualisation
-sns.lmplot(data=model_3_df, x=x, y=y, hue=fixed_group, ci=None, col=fixed_group, order=1)
-plt.show()
-
-baseline_x_log = np.log(np.arange(1, 100, 1))
-baseline_y_log = np.log(np.arange(1, 100, 1))
-sns.lineplot(data=model_3_df, x=x, y=y, hue=fixed_group)
-sns.lineplot(x=baseline_x_log, y=baseline_y_log, linestyle="--", color="grey")
-plt.xscale("log")
-plt.yscale("log")
-# plt.axis('equal')
-plt.show()
 
 
 

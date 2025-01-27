@@ -9,6 +9,8 @@ import statsmodels.formula.api as smf
 import statsmodels.api as sm
 import statsmodels.stats.power as smp
 from scipy.stats import shapiro, kstest, ttest_ind
+import scipy.stats as stats
+from statsmodels.graphics.tsaplots import plot_acf
 
 DIR = pathlib.Path(os.curdir)
 speaker_dict = {0: 2.00,
@@ -146,10 +148,10 @@ def identify_and_remove_response_outliers(df):
             sd3 = mean + 3 * std
             
             # identify outliers
-            if sub_id == 6 and block_id == 1:
-                block_outliers = block_df # remove whole block_ dataset
-            else:
-                block_outliers = block_df[block_df["response_time"] > sd3]
+            # if sub_id == 6 and block_id == 1:
+            #     block_outliers = block_df # remove whole block_ dataset
+            # else:
+            block_outliers = block_df[block_df["response_time"] > sd3]
             
             # drop outliers
             cleaned_df = cleaned_df.drop(index=block_outliers.index)
@@ -160,7 +162,7 @@ def identify_and_remove_response_outliers(df):
                 
     print("\n".join(removal_summary))
     print(f"\n-> A total of {total_removals} response outliers have been removed")
-    print("-> Block 1 of sub-6 has been removed totally due to too long response time")
+    # print("-> Block 1 of sub-6 has been removed totally due to too long response time")
     
     return cleaned_df
 
@@ -282,44 +284,50 @@ def plot_boxplot_and_swarmplot(df, x, y):
     plt.show()
 
 # distributions
-def show_data_distribution(df, x):
+def normality_test(array):
     
-    # create array of data and make shure that values are numeric
-    array = df[x].to_numpy()
+    # # create array of data and make shure that values are numeric
+    # array = df[x].to_numpy()
     
-    # prepare multiplot
-    fig,axes = plt.subplots(1, 2)
+    # # prepare multiplot
+    # fig,axes = plt.subplots(1, 2)
         
-    # plot histogram
-    sns.histplot(data=df, x=x, kde=True, ax=axes[0])
-    axes[0].set_title("Histogram with KDE")
+    # # plot histogram
+    # sns.histplot(data=df, x=x, kde=True, ax=axes[0])
+    # axes[0].set_title("Histogram with KDE")
     
-    # plot QQ-Plot
-    sm.qqplot(array, line="s", ax=axes[1])
-    axes[1].set_title("QQ-Plot")
+    # # plot QQ-Plot
+    # sm.qqplot(array, line="s", ax=axes[1])
+    # axes[1].set_title("QQ-Plot")
     
-    plt.tight_layout()
-    plt.show()
+    # plt.tight_layout()
+    # plt.show()
     
     print("\nChecking for normality:")
+    n = len(array)
+    print(f"Number of residuals: {n}")
+    if n <= 50:
+        print("--> Shapiro-Wilk Test prefered.")
+    else:
+        print("--> Kolmogorov-Smirnov Test prefered.")
     
     # Shapiro-Wilk Test
     test_stats, p_value = shapiro(array)
-    print("Result of Shapiro-Wilk Test:")
+    print("\nResult of Shapiro-Wilk Test:")
     print(f"Statistic: {test_stats:.3f}, p-value: {p_value:.3f}")
     if p_value < 0.05:
-        print("Reject H0: Data is not Gaussian. -> Assumption 3 is False")
+        print("Reject H0: Data is not Gaussian.")
     else:
-        print("Fail to reject H0: Data is Gaussian. -> Assumption 3 is True")
+        print("Fail to reject H0: Data is Gaussian.")
     
     # Kolmogorov-Smirnov Test
-    # ks_stat, ks_p_value = kstest(array, "norm", args=(np.mean(array), np.std(array)))
-    # print("\nResult of Kolmogorov-Smirnov Test:")
-    # print(f"Statistic: {ks_stat:.3f}, p-value: {ks_p_value:.3f}")
-    # if ks_p_value < 0.05:
-    #     print("Reject H0: Data is not Gaussian.")
-    # else:
-    #     print("Fail to reject H0: Data is Gaussian.")
+    ks_stat, ks_p_value = kstest(array, "norm", args=(np.mean(array), np.std(array)))
+    print("\nResult of Kolmogorov-Smirnov Test:")
+    print(f"Statistic: {ks_stat:.3f}, p-value: {ks_p_value:.3f}")
+    if ks_p_value < 0.05:
+        print("Reject H0: Data is not Gaussian.")
+    else:
+        print("Fail to reject H0: Data is Gaussian.")
         
 def t_test_speaker_distance(df, block_id, speaker_distance, group_ids, y):
     
@@ -490,9 +498,9 @@ def get_Oskar_df():
     print("Converted sub_id Strings to Integer and added 30 to every sub_id")
     
     df["block_id"] = df["block_id"].astype(int)
-    # df = df[df["block_id"] != 3]
-    df["block_id"] = df["block_id"].replace({0: 1, 1: 2, 2: 4, 3: 6})
-    print("Mapped phases with block_ids of Basti_df: 0 -> 1, 1 -> 2, 2 -> 4, 3 -> 6")
+    df = df[df["block_id"] != 3]
+    df["block_id"] = df["block_id"].replace({0: 2, 1: 4, 2: 6})
+    print("Mapped phases with block_ids of Basti_df: 0 -> 2, 1 -> 4, 2 -> 6")
     
     return df
 
@@ -544,15 +552,21 @@ def data_calculations(df):
     
     return df
 
-def get_means_df(df, value_to_mean):
+def get_means_df(df, value_to_mean, mean_by="speaker_distance"):
     
+    group_columns = ["sub_id", "cond_id", "block_id"]
+    if mean_by == "speaker_distance":
+        group_columns.append("speaker_distance")
+        
     df = (
-        df.groupby(["sub_id", "cond_id", "block_id", "speaker_distance"], as_index=False)
-        .agg(mean_value=(f"{value_to_mean}", "mean"),
-             std_value=(f"{value_to_mean}", "std")
+        df.groupby(group_columns, as_index=False)
+        .agg(
+            mean_value=(value_to_mean, "mean"),
+            std_value=(value_to_mean, "std")
         ))
     
     df = df.rename(columns={"mean_value": f"mean_{value_to_mean}", "std_value": f"std_{value_to_mean}"})
+    
     return df
 
 def get_mean_of_means_df(df, mean_value_to_mean):
@@ -584,3 +598,52 @@ def calc_experiment_duration(n_reps, mean_response_time):
 
 def get_speaker_distance(key, speaker_dict):
     return speaker_dict.get(key, None)
+
+def LMM_analysis(model_df, fitted_model, x):
+    
+    # print model summary
+    print(fitted_model.summary())
+
+    # calculate marginal, conditional R2 and ICC
+    var_resid = fitted_model.scale # var(e)
+    var_fixed = fitted_model.fittedvalues.var() # var(f)
+    var_random = fitted_model.cov_re.iloc[0, 0]# var(r)
+    
+    r2_marginal = var_fixed / (var_fixed + var_random + var_resid) # r2 of fixed effects
+    r2_conditional = (var_fixed + var_random) / (var_fixed + var_random + var_resid) # r2 of fixed and random effects
+    ICC = var_random / (var_random + var_resid)
+    
+    print(f"Marginal R²: {r2_marginal:.3f}")
+    print(f"Conditional R²: {r2_conditional:.3f}")
+    print(f"ICC: {ICC:.3f}")
+    
+    # diagnostic plots for LMM
+    residuals = fitted_model.resid
+    fitted_values = fitted_model.fittedvalues
+    
+    # linearity of the predictor
+    sns.residplot(x=model_df[x], y=residuals, lowess=True, line_kws=dict(color="r"))
+    plt.xlabel(f"{x}")
+    plt.ylabel("Residuals")
+    plt.title(f"Residuals vs {x} (linearity)")
+    plt.show()
+    
+    # QQ-Plot - normality
+    stats.probplot(residuals, dist="norm", plot=plt)
+    plt.title("QQ-Plot of Residuals (normality)")
+    plt.show()
+    
+    # more normality tests
+    normality_test(residuals)
+    
+    # Residuals vs fitted - homoscedasticity
+    sns.residplot(x=fitted_values, y=residuals, lowess=True, line_kws=dict(color="r"))
+    plt.xlabel("Fitted Values")
+    plt.ylabel("Residuals")
+    plt.title("Residuals vs Fitted Values (homoscedasticity)")
+    plt.show()
+    
+    # independency of residuals
+    plot_acf(residuals)
+    plt.title("Autocorrelation of Residuals (independency)")
+    plt.show()
