@@ -552,7 +552,7 @@ def data_calculations(df):
     
     return df
 
-def get_means_df(df, value_to_mean, mean_by="speaker_distance"):
+def get_means_df(df, value_to_mean, mean_by):
     
     group_columns = ["sub_id", "cond_id", "block_id"]
     if mean_by == "speaker_distance":
