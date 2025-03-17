@@ -523,11 +523,11 @@ def merge_dataframes(df_1, df_2):
 
 def observe_questionnaire(df, x, y, hue):
     
-    sns.set_palette("tab10")
+    sns.set_palette("colorblind")
     
     sns.stripplot(data=df, x=x, y=y, hue=hue, dodge=True, color="grey", alpha=0.5, legend=False)
     
-    sns.violinplot(data=df, x=x, y=y, hue=hue)
+    sns.boxplot(data=df, x=x, y=y, hue=hue)
     
     plt.show()
 

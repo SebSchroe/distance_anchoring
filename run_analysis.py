@@ -1,6 +1,8 @@
 # %% prepare data
 # import modules
 import analysis
+import pathlib
+import os
 import numpy as np
 import pandas as pd
 import statsmodels.formula.api as smf
@@ -11,6 +13,13 @@ from statsmodels.stats.multicomp import pairwise_tukeyhsd
 from statsmodels.graphics.tsaplots import plot_acf
 import statsmodels.api as sm
 from scipy.stats import page_trend_test
+
+# crease save path
+DIR = pathlib.Path(os.curdir)
+
+def save_fig(name):
+    save_path = DIR / "figures" / f"{name}.jpg"
+    plt.savefig(save_path, bbox_inches="tight", dpi=300)
 
 
 # for Python R Bridge
@@ -52,8 +61,16 @@ df = analysis.remove_failed_responses(df=df)
 cleaned_df = analysis.identify_and_remove_response_outliers(df=df)
 
 # %% plot averaged data
+# sns.reset_defaults()
+# plt.rcdefaults()
+sns.set_theme() # reset seaborns defaults
+sns.set_context("paper", rc={"font.family": "Arial", "font.size": 9})
+sns.set_style("ticks")
+
 y = "response_distance"
 means_df = analysis.get_means_df(df=cleaned_df, value_to_mean=y, mean_by="speaker_distance")
+means_df["block_id"] = means_df["block_id"].map({1: "naive (no view)", 2:"naive (limited view)", 4:"single-trained (limited view)", 6: "double-trained (limited view)"})
+means_df["cond_id"] = means_df["cond_id"].map({1: "Group A (trained 3-7 m)", 2:"Group B (trained 7-11 m)", 3:"Reference (trained 2-12 m)"})
 
 grey_palette = sns.color_palette("grey", n_colors=1)
 baseline = np.arange(2, 13, 1)
@@ -64,8 +81,12 @@ grid.map_dataframe(sns.pointplot, "speaker_distance", f"mean_{y}", errorbar="sd"
 
 for ax in grid.axes.flat:
     ax.plot(baseline, baseline, ls="--", color="black", alpha=0.7) # add 1:1 line through the origin
-    
-plt.show()
+
+grid.set_axis_labels(x_var="stimulus distance [m]", y_var="estimated distance [m]")
+grid.set_titles(col_template="{col_name}", row_template="{row_name}", weight="bold")
+
+grid.tight_layout()
+save_fig(name="all_data") # save plot under figure as jpg with 300 dpi
 
 # %% plot individual raw data per participant and save the plot
 for sub_id in cleaned_df["sub_id"].unique():
@@ -75,8 +96,6 @@ for sub_id in cleaned_df["sub_id"].unique():
 analysis.observe_questionnaire(df=questionnaire_df, x="cond_id", y="q09", hue=None)
 
 # %% hypothesis 1  analysis (part I)
-sns.reset_orig()
-
 # get dataframe as needed
 means_df = analysis.get_means_df(df=cleaned_df, value_to_mean="response_distance", mean_by="speaker_distance")
 include_condition = (
@@ -138,6 +157,12 @@ for centered_at in [5, 9]:
 
 #plot data to visualize hypothesis 1 (part I) results
 
+# set theme and style
+sns.set_theme() # reset seaborns defaults
+sns.set_context("paper", rc={"font.family": "Arial", "font.size": 9})
+sns.set_style("ticks")
+
+
 # extract coefficients from model summary
 coefficients = {1: {"k": 0.152 + 0.573, "a": 0.887 - 0.108},
                 2: {"k": 0.152 + 1.066, "a": 0.887 - 0.455},
@@ -163,42 +188,39 @@ model_1_fit_df['cond_id'] = model_1_fit_df['cond_id'].astype('category')
 model_1_fit_df['cond_id'] = model_1_fit_df['cond_id'].cat.reorder_categories([3, 1, 2], ordered=True)
 
 # prepare plotting
-model_1_df["cond_id"] = model_1_df["cond_id"].map({1: "3-7 m (no view)", 2:"7-11 m (no view)", 3:"2-12 m (limited view)"})
-model_1_fit_df["cond_id"] = model_1_fit_df["cond_id"].map({1: "3-7 m (no view)", 2:"7-11 m (no view)", 3:"2-12 m (limited view)"})
+model_1_df["cond_id"] = model_1_df["cond_id"].map({1: "3-7 m (naive, no view)", 2:"7-11 m (naive, no view)", 3:"2-12 m (naive, limited view)"})
+model_1_fit_df["cond_id"] = model_1_fit_df["cond_id"].map({1: "3-7 m (naive, no view)", 2:"7-11 m (naive, no view)", 3:"2-12 m (naive, limited view)"})
 
 
 baseline = np.arange(2, 13, 1)
-hue_order = ("3-7 m (no view)", "7-11 m (no view)", "2-12 m (limited view)")
+hue_order = ("3-7 m (naive, no view)", "7-11 m (naive, no view)", "2-12 m (naive, limited view)")
 ticks = np.arange(2, 13, 1).tolist()
-sns.set_theme(style="whitegrid", context="notebook", palette="colorblind")
 plt.figure(figsize=(6, 6))
 
 # plot data
 sns.pointplot(data=model_1_df, x="speaker_distance", y="mean_response_distance", hue="cond_id", errorbar="sd", 
-              native_scale=True, ls="None", markersize=5, capsize=5, errwidth=1, hue_order=hue_order)
+              native_scale=True, ls="None", markersize=5, capsize=5, errwidth=1, hue_order=hue_order, palette="colorblind")
 sns.lineplot(data=model_1_fit_df, x="x_values", y="y_values", hue="cond_id", 
-             legend=False, hue_order=hue_order)
+             legend=False, hue_order=hue_order, palette="colorblind")
 sns.lineplot(x=baseline, y=baseline, linestyle="--", color="grey")
-plt.axvline(x=5, ymin=0, ymax=1, color="grey", alpha=0.7)
-plt.axvline(x=9, ymin=0, ymax=1, color="grey", alpha=0.7)
+plt.axvline(x=5, ymin=0, ymax=1, color="grey")
+plt.axvline(x=9, ymin=0, ymax=1, color="grey")
 
 
 # adjust layout
 plt.xscale("log")
 plt.yscale("log")
-plt.xlabel("log speaker distance [m]")
-plt.ylabel("log response distance [m]")
+plt.xlabel("log stimulus distance [m]")
+plt.ylabel("log estimated distance [m]")
 plt.xticks(ticks, labels=[str(tick) for tick in ticks])
 plt.yticks(ticks, labels=[str(tick) for tick in ticks])
-plt.legend(title="Naive condition")
+plt.legend(title="Condition (Stage)", loc="center left", bbox_to_anchor=(1, 0.5), alignment="center", handletextpad=0, frameon=False)
 plt.grid(True, which="both", linestyle="--", linewidth=0.5)
 plt.axis("square")
 plt.tight_layout()
-plt.show()
+save_fig("hyp-1_part-1")
 
 # %% hypothesis 1 (part II)
-sns.reset_orig()
-
 # get dataframe
 means_df = analysis.get_means_df(df=cleaned_df, value_to_mean="response_distance", mean_by="speaker_distance")
 include_condition = (
@@ -287,19 +309,28 @@ for cond_id in [1, 2]:
         # add data to dataframe
         fit_data.extend([(cond_id, block_id, x, y) for x, y in zip(x_values, y_fit)])
     
-    
-    
 # %% plot data for hypothesis 1 (part II)
 # get fitted dataframe and data
 model_1_fit_df = pd.DataFrame(fit_data, columns=["cond_id", "block_id", "x_values", "y_values"])
-cond_ids = model_1_df["cond_id"].unique()
-block_ids = model_1_df["block_id"].unique()
+
+# rename conditions
+model_1_df["cond_id"] = model_1_df["cond_id"].replace({1: "3-7 m", 2:"7-11 m"})
+model_1_fit_df["cond_id"] = model_1_fit_df["cond_id"].replace({1: "3-7 m", 2:"7-11 m"})
+
+model_1_df["block_id"] = model_1_df["block_id"].replace({1: "naive, no view", 2:"naive, limited view"})
+model_1_fit_df["block_id"] = model_1_fit_df["block_id"].replace({1: "naive, no view", 2:"naive, limited view"})
+
+# prepare looping
+cond_ids = model_1_df["cond_id"].unique().tolist()
+block_ids = model_1_df["block_id"].unique().tolist()
 
 #prepare plotting
-sns.reset_orig()
-sns.set_theme(style="whitegrid", context="notebook")
+# set theme and style
+sns.set_theme() # reset seaborns defaults
+sns.set_context("paper", rc={"font.family": "Arial", "font.size": 9})
+sns.set_style("ticks")
 
-palette = sns.color_palette("colorblind", n_colors=len(cond_ids))
+y_ticks = np.arange(3, 12, 1).tolist()
 
 # create subplots
 fig, axes = plt.subplots(1, 2, sharey=True)
@@ -312,122 +343,37 @@ for ax, cond_id in zip(axes, cond_ids):
                   x="speaker_distance", y="mean_response_distance", hue="block_id",
                   errorbar="sd", ls="None", native_scale=True, ax=ax,
                   markersize=5, capsize=0.2, errwidth=1,
-                  palette=palette)
+                  palette="colorblind")
     
     # plot fitted lines
     for block_id in block_ids:
         subset = model_1_fit_df[(model_1_fit_df["cond_id"] == cond_id) & (model_1_fit_df["block_id"] == block_id)]
         ax.plot(subset["x_values"], subset["y_values"])
+        x_ticks = np.arange(subset["x_values"].min(), subset["x_values"].max() + 1, 1).astype(int).tolist()
         
     # plot baseline
     baseline = np.linspace(model_1_df[model_1_df["cond_id"] == cond_id]["speaker_distance"].min(), model_1_df[model_1_df["cond_id"] == cond_id]["speaker_distance"].max(), 100)
     ax.plot(baseline, baseline, ls="--", color="black", alpha=0.7)
     
     # layout
+    ax.set_title(cond_id)
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_xlabel("log speaker distance [m]")
-    ax.set_ylabel("log response distance [m]")
+    ax.set_xlabel("log stimulus distance [m]")
+    ax.set_ylabel("log estimated distance [m]")
+    ax.set_yticks(y_ticks, labels=[str(y_tick) for y_tick in y_ticks])
+    ax.set_xticks(x_ticks, labels=[str(x_tick) for x_tick in x_ticks])
+    ax.grid(True, which="both", linestyle="--", linewidth=0.5)
+    handles, labels = ax.get_legend_handles_labels()
+    ax.get_legend().remove()
+    
+fig.legend(handles, labels, title="Stage", loc="center left", bbox_to_anchor=(0.98, 0.5), handletextpad=0, frameon=False)
 
-plt.show()
-
-
-# %% hypothesis 2 analysis
-# # set variables
-# x = "block_id"
-# y= "absolute_error"
-# fixed_group = "cond_id"
-# random_group = "sub_id"
-
-# # get dataframe as it is needed (for block 6 only speaker of speaker subset used)
-# remove_condition = (
-#     (
-#         (cleaned_df["block_id"] == 6) &
-#         (cleaned_df["cond_id"] == 1) &
-#         (cleaned_df["speaker_distance"].isin([2, 8, 9, 10, 11, 12]))
-#     ) |
-#     (
-#         (cleaned_df["block_id"] == 6) &
-#         (cleaned_df["cond_id"] == 2) &
-#         (cleaned_df["speaker_distance"].isin([2, 3, 4, 5, 6, 12]))
-#     )
-# )
-# filtered_df = cleaned_df[~remove_condition].copy()
-# filtered_df = filtered_df[filtered_df["block_id"] != 1]
-# # filtered_df = filtered_df[~filtered_df["sub_id"].isin([6])] # remove extreme outliers
-
-# means_df = analysis.get_means_df(df=filtered_df, value_to_mean=y, mean_by="block_id")
-
-# # prepare df for modeling
-# model_2_df = means_df.copy()
-
-# # check data
-# sns.lmplot(data=means_df, x="block_id", y="mean_absolute_error", hue="sub_id", row="cond_id", ci=None)
-
-# # data need to be log-transformed to make residuals normal distributed
-# model_2_df[f"log_{y}"] = np.log(model_2_df[f"mean_{y}"])
-# y = f"log_{y}"
-
-# # set parameters as categorical
-# # learning_df["block_id"] = learning_df["block_id"].astype("category")
-# # learning_df["cond_id"] = learning_df["cond_id"].astype("category")
-# # learning_df["sub_id"] = learning_df["sub_id"].astype("category")
-
-# # transfer pandas df to R
-# ro.globalenv["model_2_df"] = pandas2ri.py2rpy(model_2_df)
-# print(ro.r("head(model_2_df)")) # check dataframe
-
-# # mixed effect two way ANOVA with ineraction in R
-# ro.r(f'''
-# # set independent variables as factor
-# model_2_df$block_id <- as.factor(model_2_df$block_id)
-# model_2_df$cond_id <- as.factor(model_2_df$cond_id)
-
-# # craft the model     
-# model <- lmer({y} ~ block_id * cond_id + (1|sub_id), data = model_2_df)
-
-# # tukey hsd post hoc test
-# tukey <- emmeans(model, pairwise ~ block_id * cond_id, adjust = "tukey")
-# ''')
-
-# # extrakt results tables from R
-# print("\nMixed effect ANOVA table:")
-# print(ro.r("anova(model)"))
-# print("\nMixed effect ANOVA summary table:")
-# print(ro.r("summary(model)"))
-# print("\nTukey HSD post-hoc-test table:")
-# print(ro.r("summary(tukey)"))
-
-
-# # mixed effects ANOVA with interaction
-# model_2 = smf.mixedlm(
-#     formula=f"{y} ~ C({x}) * C({fixed_group})", # fixed effect
-#     groups=model_2_df[random_group], # random intercept grouping factor 
-#     re_formula="~1", # random intercept for each group in random group
-#     data=model_2_df, # data
-#     ).fit(method=["powell", "lbfgs"], reml=True) # fitting the model (use reml=False when AIC is needed)
-
-# analysis.LMM_analysis(model_df=model_2_df, fitted_model=model_2, x="block_id")
-
-# # visualise data
-# # prepare visualisation
-# sns.set_theme(style="whitegrid", context="notebook", palette="colorblind")
-# plt.figure(figsize=(6, 6))
-# cond_id_mapping = {1: "dist. 3-7 m", 2: "dist. 7-11 m", 3: "dist. 2-12 m"}
-# block_id_mapping = {1: "naive (no view)", 2: "naive", 4: "1 x trained", 6: "2 x trained"}
-
-# sns.catplot(data=model_2_df.replace({"cond_id": cond_id_mapping, "block_id": block_id_mapping}),
-#             x="cond_id", y=y, hue="block_id", 
-#             kind="box", palette="tab10", legend_out=False)
-
-# plt.xlabel(None)
-# plt.legend(title="Test block")
-# plt.show()
+plt.tight_layout()
+save_fig("hyp-1_part-2")
 
 # %% hypothesis 2 page's L test
 # get dataframe as it is needed (for block 6 only speaker of speaker subset used)
-sns.reset_orig()
-
 remove_condition = (
     (
         (cleaned_df["block_id"] == 6) &
@@ -465,23 +411,29 @@ for cond_id in model_2_df["cond_id"].unique():
     print(results)
     
 # visualise data
+# set theme and style
+sns.set_theme() # reset seaborns defaults
+sns.set_context("paper", rc={"font.family": "Arial", "font.size": 9})
+sns.set_style("ticks")
+
 # prepare visualisation
-sns.set_theme(style="whitegrid", context="notebook", palette="colorblind")
 plt.figure(figsize=(6, 6))
-cond_id_mapping = {1: "dist. 3-7 m", 2: "dist. 7-11 m", 3: "dist. 2-12 m"}
-block_id_mapping = {2: "untrained", 4: "single-trained", 6: "double-trained"}
+cond_id_mapping = {1: "Group A (3-7 m)", 2: "Group B (7-11 m)", 3: "Reference (2-12 m)"}
+block_id_mapping = {2: "naive (limited view)", 4: "single-trained", 6: "double-trained"}
 
 sns.catplot(data=model_2_df.replace({"cond_id": cond_id_mapping, "block_id": block_id_mapping}),
-            x="cond_id", y="mean_absolute_error", hue="block_id", 
-            kind="box", palette="tab10", legend_out=False)
+            x="block_id", y="mean_absolute_error", hue="cond_id", 
+            kind="box", palette="colorblind", legend_out=False)
 
 plt.xlabel(None)
-plt.legend(title="Stage")
-plt.show()
+plt.ylabel("mean absolute error")
+plt.legend(title="Group", loc="center left", bbox_to_anchor=(1, 0.5), alignment="center", handletextpad=0.5, frameon=False)
+
+plt.tight_layout()
+save_fig("hyp-3")
     
 # %% hypothesis 3 (part I)
 # set variables
-sns.reset_orig()
 x = "speaker_distance"
 y= "response_distance"
 fixed_group = "condition"
@@ -502,7 +454,7 @@ df_1 = analysis.get_means_df(df=filtered_df, value_to_mean=y, mean_by=x) # calcu
 df_1["condition"] = None
 df_1.loc[(df_1["block_id"] == 6) & (df_1["cond_id"] == 1), "condition"] = "trained"
 df_1.loc[(df_1["block_id"] == 6) & (df_1["cond_id"] == 2), "condition"] = "generalised"
-df_1["subset"] = "dist. 2-6 m"
+df_1["subset"] = "2-6 m"
 
 # second half
 include_condition = (
@@ -519,7 +471,7 @@ df_2 = analysis.get_means_df(df=filtered_df, value_to_mean=y, mean_by=x) # calcu
 df_2["condition"] = None
 df_2.loc[(df_2["block_id"] == 6) & (df_2["cond_id"] == 2), "condition"] = "trained"
 df_2.loc[(df_2["block_id"] == 6) & (df_2["cond_id"] == 1), "condition"] = "generalised"
-df_2["subset"] = "dist. 8-12 m"
+df_2["subset"] = "8-12 m"
 
 # combine both df's
 filtered_df = pd.concat([df_1, df_2], axis=0, ignore_index=True)
@@ -527,7 +479,7 @@ y = f"mean_{y}"
 
 # sort reference group for modelling
 filtered_df['condition'] = filtered_df['condition'].astype('category')
-filtered_df['condition'] = filtered_df['condition'].cat.reorder_categories(["generalised", "trained"], ordered=True)
+filtered_df['condition'] = filtered_df['condition'].cat.reorder_categories(["trained", "generalised"], ordered=True)
 
 # remove some data
 # filtered_df = filtered_df[filtered_df["condition"] != "naive"]
@@ -545,13 +497,13 @@ x = f"log_{x}"
 y= f"log_{y}"
 
 # R: model_3 <- lmer(log_mean_response_distance ~ log_speaker_distance * condition + (1 | sub_id), data = model_3_df)
-
+fit_data = []
 for subset in model_3_df["subset"].unique():
     
     temp_df = model_3_df[model_3_df["subset"] == subset]
     
     # center intercept at certain x
-    if subset == "dist. 2-6 m":
+    if subset == "2-6 m":
         centered_at = 4
     else:
         centered_at = 10
@@ -571,31 +523,94 @@ for subset in model_3_df["subset"].unique():
     
     # get all the good analysis stuff    
     analysis.LMM_analysis(model_df=temp_df, fitted_model=model_3, x=x)
+
+    # get coefficients
+    # help model
+    x = "log_speaker_distance"
+    help_model = smf.mixedlm(
+        formula=f"{y} ~ {x} * C({fixed_group})", # fixed effect
+        groups=temp_df[f"{random_group}"], # random intercept grouping factor 
+        re_formula="~1", # random intercept for each group in random group
+        data=temp_df, # data
+        ).fit(method=["powell", "lbfgs"]) # fitting the model
     
-    # data visualisation
-    if subset == "dist. 2-6 m":
-        baseline = np.arange(2, 7, 1)
-        ticks = np.arange(2, 8, 1).tolist()
-    else:
-        baseline = np.arange(8, 13, 1)
-        ticks = np.arange(6, 13, 1).tolist()
+    intercept_1 = help_model.params[0]
+    intercept_2 = intercept_1 + help_model.params[1]
+    slope_1 = help_model.params[2]
+    slope_2 = slope_1 + help_model.params[3]
     
-    plt.figure(figsize=(8, 8))
-    sns.lmplot(data=temp_df, x="speaker_distance", y="mean_response_distance", hue=fixed_group, ci=None, markers="none", legend=False)
-    sns.pointplot(data=temp_df, x="speaker_distance", y="mean_response_distance", hue=fixed_group, errorbar="sd",
-                  native_scale=True, ls="None", markersize=5, capsize=0.1, errwidth=1, dodge=True)
-    sns.lineplot(x=baseline, y=baseline, linestyle="--", color="grey")
+    coefficients = {"trained": {"k": intercept_1, "a": slope_1},
+                    "generalised": {"k": intercept_2, "a": slope_2}}    
     
-    plt.xlabel("log speaker distance [m]")
-    plt.ylabel("log response distance [m]")
-    plt.xscale("log")
-    plt.yscale("log")
-    plt.xticks(ticks, labels=[str(tick) for tick in ticks])
-    plt.yticks(ticks, labels=[str(tick) for tick in ticks])
-    plt.grid(True, which="both", linestyle="--", linewidth=0.5)
-    plt.axis("square")
-    plt.tight_layout()
-    plt.show()
+    # calculate fitting line
+    for condition, params in coefficients.items():
+        # simulate x_values
+        min_x = model_3_df[(model_3_df["subset"] == subset) & (model_3_df["condition"] == condition)]["speaker_distance"].min()
+        max_x = model_3_df[(model_3_df["subset"] == subset) & (model_3_df["condition"] == condition)]["speaker_distance"].max()
+        x_values = np.linspace(min_x, max_x, 100)
+        
+        # calculate y values
+        k = params["k"]
+        a = params["a"]
+        y_fit = np.exp(k) * x_values**a
+        
+        # add data to dataframe
+        fit_data.extend([(subset, condition, x, y) for x, y in zip(x_values, y_fit)])
+
+
+# %% plot data for hypothesis 3 (part I)
+# get fitted dataframe and data
+model_3_fit_df = pd.DataFrame(fit_data, columns=["subset", "condition", "x_values", "y_values"])
+
+# set theme and style
+sns.set_theme() # reset seaborns defaults
+sns.set_context("paper", rc={"font.family": "Arial", "font.size": 9})
+sns.set_style("ticks")
+
+# prepare looping
+subsets = model_3_df["subset"].unique().tolist()
+conditions = model_3_df["condition"].unique().tolist()
+
+# prepare plotting
+y_ticks = np.arange(2, 13, 1).tolist()
+fig, axes = plt.subplots(1, 2, sharey=True)
+
+# create every plot separately
+for ax, subset in zip(axes, subsets):
+    
+    # plot average data with with std
+    sns.pointplot(data=model_3_df[model_3_df["subset"] == subset], 
+                  x="speaker_distance", y="mean_response_distance", hue="condition",
+                  errorbar="sd", ls="None", native_scale=True, ax=ax,
+                  markersize=5, capsize=0.2, errwidth=1,
+                  palette="colorblind")
+    
+    # plot fitted lines
+    for condition in conditions:
+        condition_df = model_3_fit_df[(model_3_fit_df["subset"] == subset) & (model_3_fit_df["condition"] == condition)]
+        ax.plot(condition_df["x_values"], condition_df["y_values"])
+        x_ticks = np.arange(condition_df["x_values"].min(), condition_df["x_values"].max() + 1, 1).astype(int).tolist()
+        
+    # plot baseline
+    baseline = np.linspace(model_3_df[model_3_df["subset"] == subset]["speaker_distance"].min(), model_3_df[model_3_df["subset"] == subset]["speaker_distance"].max(), 100)
+    ax.plot(baseline, baseline, ls="--", color="black", alpha=0.7)
+    
+    # layout
+    ax.set_title(subset)
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlabel("log stimulus distance [m]")
+    ax.set_ylabel("log estimated distance [m]")
+    ax.set_yticks(y_ticks, labels=[str(y_tick) for y_tick in y_ticks])
+    ax.set_xticks(x_ticks, labels=[str(x_tick) for x_tick in x_ticks])
+    ax.grid(True, which="both", linestyle="--", linewidth=0.5)
+    handles, labels = ax.get_legend_handles_labels()
+    ax.get_legend().remove()
+    
+fig.legend(handles, labels, title="Condition", loc="center left", bbox_to_anchor=(0.98, 0.5), handletextpad=0, frameon=False)
+    
+plt.tight_layout()
+save_fig("hyp-2_part-1")
 
 # %% hypothesis 3 (part II)
 # absolute error per speaker distance in block 6
@@ -648,106 +663,126 @@ for trend in ["increasing", "decreasing"]:
         print(f"Results of Page's L test for condition: {condition}")
         print(results)
 
-# %% new version hypothesis 3
-# # set variables
-# x = "condition"
-# y= "absolute_error"
+# %% additional investigation
+from scipy.stats import ttest_ind
 
-# # create necessary df
-# # first half speaker_distance
-# include_condition = (
-#     (
-#          (cleaned_df["cond_id"].isin([1, 2])) &
-#          (cleaned_df["block_id"] == 6) &
-#          (cleaned_df["speaker_distance"].isin([3, 4, 5, 6, 7]))
-#      ) |
+# t-test comparison between block 1 and 2 of cond 1 and 2
+means_df = analysis.get_means_df(df=cleaned_df, value_to_mean="absolute_error", mean_by="speaker_distance")
+include_condition = (
+    ((means_df["cond_id"].isin([1, 2])) &
+     (means_df["block_id"].isin([1, 2]))
+     )
+    )
+filtered_df = means_df[include_condition].copy()
+filtered_df = filtered_df[filtered_df["sub_id"] != 15]
+sns.lmplot(data=filtered_df, x="block_id", y="mean_absolute_error", col="cond_id", hue="cond_id")
+
+group_1_array = filtered_df[(filtered_df["cond_id"] == 2) & (filtered_df["block_id"] == 1)]["mean_absolute_error"].to_numpy()
+group_2_array = filtered_df[(filtered_df["cond_id"] == 2) & (filtered_df["block_id"] == 2)]["mean_absolute_error"].to_numpy()
+
+t_stat, p_val = ttest_ind(a=group_1_array, b=group_2_array, equal_var=False, alternative="two-sided")
+print(f"t-statistic: {t_stat:.3f}")
+print(f"p-value: {p_val:.3f}")
+
+group_1_parameter = analysis.get_group_parameter(array=group_1_array)
+group_2_parameter = analysis.get_group_parameter(array=group_2_array)
+analysis.statistical_power(group_1=group_1_parameter, group_2=group_2_parameter, alpha=0.05, alternative="two-sided")
+
+
+# %% t-test Hypothesis 1 Part III
+group_1_array = questionnaire_df[questionnaire_df["cond_id"] == 1]["q09"].to_numpy()
+group_2_array = questionnaire_df[questionnaire_df["cond_id"] == 2]["q09"].to_numpy()
+
+group_1_array = np.delete(group_1_array, obj=3)
+
+t_stat, p_val = ttest_ind(a=group_1_array, b=group_2_array, equal_var=False, alternative="two-sided")
+print(f"t-statistic: {t_stat:.3f}")
+print(f"p-value: {p_val:.3f}")
+
+group_1_parameter = analysis.get_group_parameter(array=group_1_array)
+group_2_parameter = analysis.get_group_parameter(array=group_2_array)
+analysis.statistical_power(group_1=group_1_parameter, group_2=group_2_parameter, alpha=0.05, alternative="two-sided")
+
+# %% t-test comparison accuracy block 2 cond 1, 2 and 3
+remove_condition = (
+    (
+        (cleaned_df["block_id"] == 6) &
+        (cleaned_df["cond_id"] == 1) &
+        (cleaned_df["speaker_distance"].isin([2, 8, 9, 10, 11, 12]))
+    ) |
+    (
+        (cleaned_df["block_id"] == 6) &
+        (cleaned_df["cond_id"] == 2) &
+        (cleaned_df["speaker_distance"].isin([2, 3, 4, 5, 6, 12]))
+    )
+)
+filtered_df = cleaned_df[~remove_condition].copy()
+filtered_df = filtered_df[filtered_df["block_id"].isin([2, 6])]
+
+means_df = analysis.get_means_df(df=filtered_df, value_to_mean="absolute_error", mean_by="block_id")
+
+cond_to_compare = [2, 3]
+group_1_array = means_df[(means_df["block_id"] == 2) & (means_df["cond_id"] == cond_to_compare[0])]["mean_absolute_error"].to_numpy()
+group_2_array = means_df[(means_df["block_id"] == 2) & (means_df["cond_id"] == cond_to_compare[1])]["mean_absolute_error"].to_numpy()
+
+t_stat, p_val = ttest_ind(a=group_1_array, b=group_2_array, equal_var=False, alternative="two-sided")
+print(f"t-statistic: {t_stat:.3f}")
+print(f"p-value: {p_val:.3f}")
+
+
+group_1_parameter = analysis.get_group_parameter(array=group_1_array)
+group_2_parameter = analysis.get_group_parameter(array=group_2_array)
+analysis.statistical_power(group_1=group_1_parameter, group_2=group_2_parameter, alpha=0.05, alternative="two-sided")
+
+# %% plotting for t-test comparison
+from statannotations.Annotator import Annotator
+
+# get dataframe and map cond_id / block_id
+annotations_df = means_df.copy()
+cond_id_mapping = {1: "Group A (3-7 m)", 2: "Group B (7-11 m)", 3: "Reference (2-12 m)"}
+block_id_mapping = {2: "naive (limited view)", 6: "double-trained (limited view)"}
+annotations_df = annotations_df.replace({"cond_id": cond_id_mapping, "block_id": block_id_mapping})
+
+x = "block_id"
+y = "mean_absolute_error"
+cond_ids = [1, 2, 3]
+
+pairs = [
+    [("naive (limited view)", "Group A (3-7 m)"), ("naive (limited view)", "Group B (7-11 m)")],
+    [("naive (limited view)", "Group A (3-7 m)"), ("naive (limited view)", "Reference (2-12 m)")],
+    [("naive (limited view)", "Group B (7-11 m)"), ("naive (limited view)", "Reference (2-12 m)")],
     
-#     (
-#         (cleaned_df["cond_id"] == 1) &
-#         (cleaned_df["block_id"] == 1)
-#     )
-# )
-# filtered_df = cleaned_df[include_condition]
-# df_1 = (filtered_df
-#                .groupby(["sub_id", "cond_id", "block_id"], as_index=False)
-#                .agg(mean_value=(y, "mean"))
-#                )
-# df_1 = df_1.rename(columns={"mean_value": f"mean_{y}"})
+    [("double-trained (limited view)", "Group A (3-7 m)"), ("double-trained (limited view)", "Group B (7-11 m)")],
+    [("double-trained (limited view)", "Group A (3-7 m)"), ("double-trained (limited view)", "Reference (2-12 m)")],
+    [("double-trained (limited view)", "Group B (7-11 m)"), ("double-trained (limited view)", "Reference (2-12 m)")]
+    ]
 
-# df_1["condition"] = None
-# df_1.loc[(df_1["block_id"] == 1) & (df_1["cond_id"] == 1), "condition"] = "naive"
-# df_1.loc[(df_1["block_id"] == 6) & (df_1["cond_id"] == 1), "condition"] = "trained"
-# df_1.loc[(df_1["block_id"] == 6) & (df_1["cond_id"] == 2), "condition"] = "extrapolated"
-# df_1["subset"] = "dist. 3-7 m"
+hue_plot_params = {
+    'data': annotations_df,
+    'x': 'block_id',
+    'y': 'mean_absolute_error',
+    "order": ["naive (limited view)", "double-trained (limited view)"],
+    "hue": "cond_id",
+    "hue_order": ["Group A (3-7 m)", "Group B (7-11 m)", "Reference (2-12 m)"],
+    "palette": "colorblind"
+}
 
-# # second half
-# include_condition = (
-#     (
-#          (cleaned_df["cond_id"].isin([1, 2])) &
-#          (cleaned_df["block_id"] == 6) &
-#          (cleaned_df["speaker_distance"].isin([7, 8, 9, 10, 11]))
-#      ) |
-    
-#     (
-#         (cleaned_df["cond_id"] == 2) &
-#         (cleaned_df["block_id"] == 1)
-#     )
-# )
-# filtered_df = cleaned_df[include_condition]
+# set theme and style
+sns.set_theme() # reset seaborns defaults
+sns.set_context("paper", rc={"font.family": "Arial", "font.size": 9})
+sns.set_style("ticks")
 
-# df_2 = (filtered_df
-#                .groupby(["sub_id", "cond_id", "block_id"], as_index=False)
-#                .agg(mean_value=(y, "mean"))
-#                )
-# df_2 = df_2.rename(columns={"mean_value": f"mean_{y}"})
+# Plot with seaborn
+ax = sns.boxplot(**hue_plot_params)
 
-# # group by condition
-# df_2["condition"] = None
-# df_2.loc[(df_2["block_id"] == 1) & (df_2["cond_id"] == 2), "condition"] = "naive"
-# df_2.loc[(df_2["block_id"] == 6) & (df_2["cond_id"] == 2), "condition"] = "trained"
-# df_2.loc[(df_2["block_id"] == 6) & (df_2["cond_id"] == 1), "condition"] = "extrapolated"
-# df_2["subset"] = "dist. 7-11 m"
+# Add annotations
+annotator = Annotator(ax, pairs, **hue_plot_params)
+annotator.configure(test="Mann-Whitney").apply_and_annotate()
 
-# # combine both df's
-# model_3_df = pd.concat([df_1, df_2], axis=0, ignore_index=True)
-# y = f"mean_{y}"
+# adjust layout
+plt.xlabel(None)
+plt.ylabel("mean absolute error")
+plt.legend(title="Group", loc="center left", bbox_to_anchor=(1, 0.5), alignment="center", handletextpad=0.5, frameon=False)
 
-# # log transformation
-# model_3_df[f"log_{y}"] = np.log(model_3_df[y])
-# y = f"log_{y}"
-
-# # sort reference group for modelling
-# model_3_df['condition'] = model_3_df['condition'].astype('category')
-# model_3_df['condition'] = model_3_df['condition'].cat.reorder_categories(["naive", "trained", "extrapolated"], ordered=True)
-
-
-# # model each speaker subset seperately
-# formula = f"{y} ~ C({x})"
-# for subset in model_3_df["subset"].unique():
-    
-#     print(f"\nModel analysis for speaker subset {subset}:")
-    
-#     subset_df = model_3_df[model_3_df["subset"] == subset]
-#     # create model
-#     ANOVA = smf.ols(formula=formula, data=subset_df).fit()
-#     anova_table = sm.stats.anova_lm(ANOVA, typ=2)
-#     print(anova_table)
-#     r2 = ANOVA.rsquared
-#     print(f"r2: {r2:.3f}")
-
-#     # check assuptions
-#     cls = LinearRegDiagnostic.LinearRegDiagnostic(ANOVA)
-#     vif, fig, ax = cls()
-#     # print(vif)
-    
-#     # more normality tests
-#     residuals = ANOVA.resid
-#     analysis.normality_test(residuals)
-
-#     # tukey hsd post hoc test
-#     tukey_result = pairwise_tukeyhsd(endog=subset_df[y], groups=subset_df[x])
-#     print("\n", tukey_result)
-
-# # visualize data
-# sns.set_theme(style="whitegrid", context="notebook", palette="colorblind")
-# sns.catplot(data=model_3_df, x=x, y=y, col="subset", hue="cond_id", kind="box", palette="tab10")
+#plt.tight_layout()
+save_fig("hyp-3")
