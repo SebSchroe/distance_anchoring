@@ -188,12 +188,12 @@ model_1_fit_df['cond_id'] = model_1_fit_df['cond_id'].astype('category')
 model_1_fit_df['cond_id'] = model_1_fit_df['cond_id'].cat.reorder_categories([3, 1, 2], ordered=True)
 
 # prepare plotting
-model_1_df["cond_id"] = model_1_df["cond_id"].map({1: "3-7 m (naive, no view)", 2:"7-11 m (naive, no view)", 3:"2-12 m (naive, limited view)"})
-model_1_fit_df["cond_id"] = model_1_fit_df["cond_id"].map({1: "3-7 m (naive, no view)", 2:"7-11 m (naive, no view)", 3:"2-12 m (naive, limited view)"})
+model_1_df["cond_id"] = model_1_df["cond_id"].map({1: "Group A (naive, no view)", 2:"Group B (naive, no view)", 3:"Reference (naive, limited view)"})
+model_1_fit_df["cond_id"] = model_1_fit_df["cond_id"].map({1: "Group A (naive, no view)", 2:"Group B (naive, no view)", 3:"Reference (naive, limited view)"})
 
 
 baseline = np.arange(2, 13, 1)
-hue_order = ("3-7 m (naive, no view)", "7-11 m (naive, no view)", "2-12 m (naive, limited view)")
+hue_order = ("Group A (naive, no view)", "Group B (naive, no view)", "Reference (naive, limited view)")
 ticks = np.arange(2, 13, 1).tolist()
 plt.figure(figsize=(6, 6))
 
@@ -214,7 +214,7 @@ plt.xlabel("log stimulus distance [m]")
 plt.ylabel("log estimated distance [m]")
 plt.xticks(ticks, labels=[str(tick) for tick in ticks])
 plt.yticks(ticks, labels=[str(tick) for tick in ticks])
-plt.legend(title="Condition (Stage)", loc="center left", bbox_to_anchor=(1, 0.5), alignment="center", handletextpad=0, frameon=False)
+plt.legend(title="Group (Condition)", loc="center left", bbox_to_anchor=(1, 0.5), alignment="center", handletextpad=0, frameon=False)
 plt.grid(True, which="both", linestyle="--", linewidth=0.5)
 plt.axis("square")
 plt.tight_layout()
@@ -367,7 +367,7 @@ for ax, cond_id in zip(axes, cond_ids):
     handles, labels = ax.get_legend_handles_labels()
     ax.get_legend().remove()
     
-fig.legend(handles, labels, title="Stage", loc="center left", bbox_to_anchor=(0.98, 0.5), handletextpad=0, frameon=False)
+fig.legend(handles, labels, title="Test", loc="center left", bbox_to_anchor=(0.98, 0.5), handletextpad=0, frameon=False)
 
 plt.tight_layout()
 save_fig("hyp-1_part-2")
@@ -453,7 +453,7 @@ df_1 = analysis.get_means_df(df=filtered_df, value_to_mean=y, mean_by=x) # calcu
 
 df_1["condition"] = None
 df_1.loc[(df_1["block_id"] == 6) & (df_1["cond_id"] == 1), "condition"] = "trained"
-df_1.loc[(df_1["block_id"] == 6) & (df_1["cond_id"] == 2), "condition"] = "generalised"
+df_1.loc[(df_1["block_id"] == 6) & (df_1["cond_id"] == 2), "condition"] = "novel"
 df_1["subset"] = "2-6 m"
 
 # second half
@@ -470,7 +470,7 @@ df_2 = analysis.get_means_df(df=filtered_df, value_to_mean=y, mean_by=x) # calcu
 # group by condition
 df_2["condition"] = None
 df_2.loc[(df_2["block_id"] == 6) & (df_2["cond_id"] == 2), "condition"] = "trained"
-df_2.loc[(df_2["block_id"] == 6) & (df_2["cond_id"] == 1), "condition"] = "generalised"
+df_2.loc[(df_2["block_id"] == 6) & (df_2["cond_id"] == 1), "condition"] = "novel"
 df_2["subset"] = "8-12 m"
 
 # combine both df's
@@ -479,7 +479,7 @@ y = f"mean_{y}"
 
 # sort reference group for modelling
 filtered_df['condition'] = filtered_df['condition'].astype('category')
-filtered_df['condition'] = filtered_df['condition'].cat.reorder_categories(["trained", "generalised"], ordered=True)
+filtered_df['condition'] = filtered_df['condition'].cat.reorder_categories(["trained", "novel"], ordered=True)
 
 # remove some data
 # filtered_df = filtered_df[filtered_df["condition"] != "naive"]
@@ -540,7 +540,7 @@ for subset in model_3_df["subset"].unique():
     slope_2 = slope_1 + help_model.params[3]
     
     coefficients = {"trained": {"k": intercept_1, "a": slope_1},
-                    "generalised": {"k": intercept_2, "a": slope_2}}    
+                    "novel": {"k": intercept_2, "a": slope_2}}    
     
     # calculate fitting line
     for condition, params in coefficients.items():
@@ -607,7 +607,7 @@ for ax, subset in zip(axes, subsets):
     handles, labels = ax.get_legend_handles_labels()
     ax.get_legend().remove()
     
-fig.legend(handles, labels, title="Condition", loc="center left", bbox_to_anchor=(0.98, 0.5), handletextpad=0, frameon=False)
+fig.legend(handles, labels, title="Stimulus exposure", loc="center left", bbox_to_anchor=(0.98, 0.5), handletextpad=0, frameon=False, alignment="left")
     
 plt.tight_layout()
 save_fig("hyp-2_part-1")
@@ -721,7 +721,7 @@ filtered_df = filtered_df[filtered_df["block_id"].isin([2, 6])]
 
 means_df = analysis.get_means_df(df=filtered_df, value_to_mean="absolute_error", mean_by="block_id")
 
-cond_to_compare = [2, 3]
+cond_to_compare = [1, 3]
 group_1_array = means_df[(means_df["block_id"] == 2) & (means_df["cond_id"] == cond_to_compare[0])]["mean_absolute_error"].to_numpy()
 group_2_array = means_df[(means_df["block_id"] == 2) & (means_df["cond_id"] == cond_to_compare[1])]["mean_absolute_error"].to_numpy()
 
