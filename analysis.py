@@ -1,16 +1,14 @@
 import pathlib
 import os
-import LinearRegDiagnostic
 import numpy as np
 import seaborn as sns
 import pandas as pd
 import matplotlib.pyplot as plt
-import statsmodels.formula.api as smf
-import statsmodels.api as sm
 import statsmodels.stats.power as smp
-from scipy.stats import shapiro, kstest, ttest_ind
+from scipy.stats import shapiro, kstest
 import scipy.stats as stats
 from statsmodels.graphics.tsaplots import plot_acf
+import statsmodels.formula.api as smf
 
 DIR = pathlib.Path(os.curdir)
 speaker_dict = {0: 2.00,
@@ -124,6 +122,14 @@ def save_plot(sub_id, x, y):
     plt.close()
     print(f"Plot for sub_{sub_id} was saved unter {save_path}")
 
+def define_plotting_theme():
+    sns.set_theme() # reset seaborns defaults
+    sns.set_context("paper", rc={"font.family": "Arial", "font.size": 9})
+    sns.set_style("ticks")
+
+def save_fig(name):
+    save_path = DIR / "figures" / f"{name}.jpg"
+    plt.savefig(save_path, bbox_inches="tight", dpi=300)
 
 def identify_and_remove_response_outliers(df):
     
@@ -285,24 +291,7 @@ def plot_boxplot_and_swarmplot(df, x, y):
 
 # distributions
 def normality_test(array):
-    
-    # # create array of data and make shure that values are numeric
-    # array = df[x].to_numpy()
-    
-    # # prepare multiplot
-    # fig,axes = plt.subplots(1, 2)
         
-    # # plot histogram
-    # sns.histplot(data=df, x=x, kde=True, ax=axes[0])
-    # axes[0].set_title("Histogram with KDE")
-    
-    # # plot QQ-Plot
-    # sm.qqplot(array, line="s", ax=axes[1])
-    # axes[1].set_title("QQ-Plot")
-    
-    # plt.tight_layout()
-    # plt.show()
-    
     print("\nChecking for normality:")
     n = len(array)
     print(f"Number of residuals: {n}")
@@ -329,47 +318,6 @@ def normality_test(array):
     else:
         print("Fail to reject H0: Data is Gaussian.")
         
-def t_test_speaker_distance(df, block_id, speaker_distance, group_ids, y):
-    
-    # get mean data of y from df
-    mean_df = get_means_df(df=df, value_to_mean=y)
-    
-    # convert speaker_distance of cond 3 to match other speaker_distances   
-    mean_df["speaker_distance"] = mean_df["speaker_distance"].replace(
-        {2.1: 2, 2.96: 3, 3.84: 4, 4.74: 5, 5.67: 6, 6.62: 7, 7.6: 8, 8.8: 9, 9.64: 10, 10.7: 11, 11.78: 12})  
-    t_test_df = mean_df[(mean_df["cond_id"].isin(group_ids)) & (mean_df["block_id"] == block_id) & (mean_df["speaker_distance"] == speaker_distance)]
-    
-    # Assumptions:
-    print("\nAssumption 1 (Independence): Each subject only belong to one group. -> True")
-    print("Assumption 2 (Outliers): The data of each group have no significant outliers.")
-    print("Assumption 3 (Normality): The data of each group should be normal distributed.")
-    
-    # plot data for first impression
-    plot_boxplot_and_swarmplot(df=t_test_df, x="cond_id", y=f"mean_{y}")
-    
-    # check assumptions 2 and 3 for group 1
-    group_1_df = detect_and_remove_outliers_with_IQR(df=t_test_df, cond_id=group_ids[0], y=y)
-    show_data_distribution(df=group_1_df, x=f"mean_{y}")
-    
-    # check assumptions 2 and 3 for group 2
-    group_2_df = detect_and_remove_outliers_with_IQR(df=t_test_df, cond_id=group_ids[1], y=y)
-    show_data_distribution(df=group_2_df, x=f"mean_{y}")
-    
-    # get array per group
-    group_1_array = group_1_df[f"mean_{y}"].to_numpy()
-    group_2_array = group_2_df[f"mean_{y}"].to_numpy()
-    
-    # Welchs t_test
-    t_stat, p_val = ttest_ind(a=group_1_array, b=group_2_array, equal_var=False, alternative="two-sided")
-    print(f"\nT-Test results for conditions {group_ids} in block {block_id} at speaker distance {speaker_distance}.")
-    print(f"t-statistic: {t_stat:.3f}")
-    print(f"p-value: {p_val:.3f}")
-    
-    # calculate statistical power
-    group_1_parameter = get_group_parameter(array=group_1_array)
-    group_2_parameter = get_group_parameter(array=group_2_array)
-    statistical_power(group_1=group_1_parameter, group_2=group_2_parameter, alpha=0.05, alternative="two-sided")  
-
 def get_group_parameter(array):
     
     mean = array.mean()
@@ -406,24 +354,6 @@ def statistical_power(group_1, group_2, alpha=0.05, alternative="two-sided"):
     print(f"Group 2: mean = {mean_2:.3f}, std = {std_2:.3f}, n: {n_2}")
     print(f"Cohen's d: {effect_size:.3f}")
     print(f"-> Statistical power of given groups: {power:.3f}")
-
-# linear regression diagnostics
-def create_diagnostic_plots(df, x, y):
-    """
-    1. .residual_plot() -> Residuals vs Fittes values: checks if relationship between x and y is linear (linearity)
-    2. .qq_plot() -> Normal Q-Q: checks if errors/residuals are normally distibuted (normality)
-    3. .scale_location_plt() -> Scale-location: checks if the residual-variance is the same for every value of x (homoskedasticity)
-    4. .leverage_plot() -> Residuals vs Leverage: checks if observations are independent of each other (outliers)
-    """
-    
-    # fitting linear model
-    model = smf.ols(formula=f"{y} ~ {x}", data=df).fit() # formula = y ~ x
-    print(model.summary())
-    
-    # generate diagnostic plots
-    cls = LinearRegDiagnostic.LinearRegDiagnostic(model)
-    vif, fig, ax = cls()
-    print(vif)
 
 # help functions
 def get_Basti_df(sub_ids, cond_ids, block_ids):
@@ -582,22 +512,31 @@ def get_mean_of_means_df(df, mean_value_to_mean):
     df = df.rename(columns={"mean_mean_value": f"mean_{mean_value_to_mean}", "std_mean_value": f"std_{mean_value_to_mean}"})
     return df
 
-def calc_experiment_duration(n_reps, mean_response_time):
-    n_reps = n_reps
-    n_speaker = [5, 11]
-    isi = [0.3, 2]
-
-    n_trials_1 = n_reps * n_speaker[0]
-    n_trials_2 = n_reps * n_speaker[1]
-
-    time_per_trial_1 = mean_response_time + isi[0]
-    time_per_trial_2 = isi[1]
-
-    experiment_duration_m = (3 * (n_trials_1 * time_per_trial_1) + 2 * (n_trials_1 * time_per_trial_2) + (n_trials_2 * time_per_trial_1))/60
-    return experiment_duration_m
-
 def get_speaker_distance(key, speaker_dict):
     return speaker_dict.get(key, None)
+
+def run_mixedlm_analysis(df, x, y, fixed_group, random_group, centered_at_values):
+    # perform mixed effects ANCOVA with interaction and centered x values
+    
+    # log transform data before
+    df[f"log_{x}"] = np.log(df[x])
+    df[f"log_{y}"] = np.log(df[y])
+    
+    for centered_at in centered_at_values:
+        print(f"\nResults for x centered at {centered_at}:")
+        temp_df = df.copy()
+        temp_df[f"log_centered_{x}"] = temp_df[f"log_{x}"] - np.log(centered_at)
+        
+        # ANCOVA model
+        model = smf.mixedlm(
+            formula=f"log_{y} ~ log_centered_{x} * C({fixed_group})",
+            groups=temp_df[random_group],
+            re_formula="~1",
+            data=temp_df,
+        ).fit(method=["powell", "lbfgs"])
+        
+        # model diagnostics
+        LMM_analysis(model_df=temp_df, fitted_model=model, x=f"log_{x}")
 
 def LMM_analysis(model_df, fitted_model, x):
     

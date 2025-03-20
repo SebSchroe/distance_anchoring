@@ -4,9 +4,9 @@ import distance_anchoring
 import LedControl
 
 # set global variables
-sub_id = '29'  # choose 'test_run' for functionality check (training with task_id 1 and n_reps 11)
+sub_id = '01'  # choose 'test_run' for functionality check (training with task_id 1 and n_reps 11)
 cond_id = 1
-block_id = 6
+block_id = 1
 
 """
 cond_id:    1 -> block 1, 2, 3, 4, 5 with task_id = 2
@@ -32,4 +32,3 @@ distance_anchoring.start_block(sub_id=sub_id, cond_id=cond_id, block_id=block_id
 freefield.flush_buffers(processor='RX81')
 
 LedControl.stop_led_control()
-

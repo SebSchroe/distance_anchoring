@@ -1,42 +1,13 @@
 # %% prepare data
 # import modules
 import analysis
-import pathlib
-import os
 import numpy as np
 import pandas as pd
 import statsmodels.formula.api as smf
 import seaborn as sns
-import LinearRegDiagnostic
 import matplotlib.pyplot as plt
-from statsmodels.stats.multicomp import pairwise_tukeyhsd
-from statsmodels.graphics.tsaplots import plot_acf
-import statsmodels.api as sm
-from scipy.stats import page_trend_test
-
-# crease save path
-DIR = pathlib.Path(os.curdir)
-
-def save_fig(name):
-    save_path = DIR / "figures" / f"{name}.jpg"
-    plt.savefig(save_path, bbox_inches="tight", dpi=300)
-
-
-# for Python R Bridge
-import os
-os.environ["R_HOME"] = "C:/Program Files/R/R-4.4.2" # set R directory
-
-import rpy2.robjects as ro
-from rpy2.robjects import pandas2ri
-
-# import R packages
-ro.r('''
-library(lme4)
-library(emmeans)
-     ''')
-
-# activate pandas to R dataframe
-pandas2ri.activate()
+from scipy.stats import page_trend_test, ttest_ind
+from statannotations.Annotator import Annotator
 
 # set global variables
 sub_ids = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10",
@@ -61,11 +32,8 @@ df = analysis.remove_failed_responses(df=df)
 cleaned_df = analysis.identify_and_remove_response_outliers(df=df)
 
 # %% plot averaged data
-# sns.reset_defaults()
-# plt.rcdefaults()
-sns.set_theme() # reset seaborns defaults
-sns.set_context("paper", rc={"font.family": "Arial", "font.size": 9})
-sns.set_style("ticks")
+# set theme and style
+analysis.define_plotting_theme()
 
 y = "response_distance"
 means_df = analysis.get_means_df(df=cleaned_df, value_to_mean=y, mean_by="speaker_distance")
@@ -86,7 +54,7 @@ grid.set_axis_labels(x_var="stimulus distance [m]", y_var="estimated distance [m
 grid.set_titles(col_template="{col_name}", row_template="{row_name}", weight="bold")
 
 grid.tight_layout()
-save_fig(name="all_data") # save plot under figure as jpg with 300 dpi
+analysis.save_fig(name="all_data") # save plot under figure as jpg with 300 dpi
 
 # %% plot individual raw data per participant and save the plot
 for sub_id in cleaned_df["sub_id"].unique():
@@ -94,8 +62,8 @@ for sub_id in cleaned_df["sub_id"].unique():
 
 # %% observe questionnaire at its own
 analysis.observe_questionnaire(df=questionnaire_df, x="cond_id", y="q09", hue=None)
-
-# %% hypothesis 1  analysis (part I)
+    
+# %% Hypothesis 1 (part I)
 # get dataframe as needed
 means_df = analysis.get_means_df(df=cleaned_df, value_to_mean="response_distance", mean_by="speaker_distance")
 include_condition = (
@@ -105,63 +73,22 @@ include_condition = (
     ((means_df["cond_id"] == 3) &
      (means_df["block_id"] == 2)
      ))
-
 filtered_df = means_df[include_condition].copy() # filter data by inclusion conditions
 filtered_df["block_id"] = filtered_df["block_id"].replace({2: 1}) # set block_id of cond 3 to same level as cond 1 and 2
-
-# remove outliers
 filtered_df = filtered_df[filtered_df["sub_id"] != 15] # remove sub 15 as extreme outlier in block 1
 
 model_1_df = filtered_df.copy()
-
-# define parameter for the model
-x = "speaker_distance"
-y= "mean_response_distance"
-fixed_group = "cond_id"
-random_group = "sub_id"
 
 # sort reference group for modelling
 model_1_df['cond_id'] = model_1_df['cond_id'].astype('category')
 model_1_df['cond_id'] = model_1_df['cond_id'].cat.reorder_categories([3, 1, 2], ordered=True)
 
+# run model plus analysis
+analysis.run_mixedlm_analysis(df=model_1_df, x="speaker_distance", y="mean_response_distance", fixed_group="cond_id", random_group="sub_id", centered_at_values=[5, 9])
 
-# log transform data if necessary
-model_1_df[f"log_{x}"] = np.log(model_1_df[f"{x}"])
-model_1_df[f"log_{y}"] = np.log(model_1_df[f"{y}"])
-x = f"log_{x}"
-y= f"log_{y}"
-
-
-for centered_at in [5, 9]:
-    
-    print(f"\nResults for x centered at {centered_at}:")
-    # create temp dataframe
-    temp_df = model_1_df.copy()
-    # centre x for new intercept intersection
-    temp_df["log_centered_speaker_distance"] = temp_df["log_speaker_distance"] - np.log(centered_at)
-    x = "log_centered_speaker_distance"
-    
-    # mixed effect ANCOVA with interaction and random slope, intercept
-    model_1 = smf.mixedlm(
-        formula=f"{y} ~ {x} * C({fixed_group})", # fixed effect
-        groups=temp_df[f"{random_group}"], # random intercept grouping factor 
-        re_formula="~1", # random intercept for each group in random group
-        data=temp_df, # data
-        ).fit(method=["powell", "lbfgs"]) # fitting the model
-    
-    # get all the good analysis stuff
-    analysis.LMM_analysis(model_df=model_1_df, fitted_model=model_1, x="log_speaker_distance")
-
-# R model
-# model = lmer(y ~ x * fixed_group categorical + (1 | random_group))
-
-#plot data to visualize hypothesis 1 (part I) results
-
+# %% Visualisation hypothesis 1 (part I)
 # set theme and style
-sns.set_theme() # reset seaborns defaults
-sns.set_context("paper", rc={"font.family": "Arial", "font.size": 9})
-sns.set_style("ticks")
-
+analysis.define_plotting_theme()
 
 # extract coefficients from model summary
 coefficients = {1: {"k": 0.152 + 0.573, "a": 0.887 - 0.108},
@@ -191,7 +118,6 @@ model_1_fit_df['cond_id'] = model_1_fit_df['cond_id'].cat.reorder_categories([3,
 model_1_df["cond_id"] = model_1_df["cond_id"].map({1: "Group A (naive, no view)", 2:"Group B (naive, no view)", 3:"Reference (naive, limited view)"})
 model_1_fit_df["cond_id"] = model_1_fit_df["cond_id"].map({1: "Group A (naive, no view)", 2:"Group B (naive, no view)", 3:"Reference (naive, limited view)"})
 
-
 baseline = np.arange(2, 13, 1)
 hue_order = ("Group A (naive, no view)", "Group B (naive, no view)", "Reference (naive, limited view)")
 ticks = np.arange(2, 13, 1).tolist()
@@ -206,7 +132,6 @@ sns.lineplot(x=baseline, y=baseline, linestyle="--", color="grey")
 plt.axvline(x=5, ymin=0, ymax=1, color="grey")
 plt.axvline(x=9, ymin=0, ymax=1, color="grey")
 
-
 # adjust layout
 plt.xscale("log")
 plt.yscale("log")
@@ -218,9 +143,9 @@ plt.legend(title="Group (Condition)", loc="center left", bbox_to_anchor=(1, 0.5)
 plt.grid(True, which="both", linestyle="--", linewidth=0.5)
 plt.axis("square")
 plt.tight_layout()
-save_fig("hyp-1_part-1")
+analysis.save_fig("hyp-1_part-1")
 
-# %% hypothesis 1 (part II)
+# %% Hypothesis 1 (part II)
 # get dataframe
 means_df = analysis.get_means_df(df=cleaned_df, value_to_mean="response_distance", mean_by="speaker_distance")
 include_condition = (
@@ -229,8 +154,6 @@ include_condition = (
      )
     )
 filtered_df = means_df[include_condition].copy() # filter data by inclusion conditions
-
-# remove outliers
 filtered_df = filtered_df[filtered_df["sub_id"] != 15] # remove sub 15 as extreme outlier in block 1
 
 # prepare analysis
@@ -309,7 +232,7 @@ for cond_id in [1, 2]:
         # add data to dataframe
         fit_data.extend([(cond_id, block_id, x, y) for x, y in zip(x_values, y_fit)])
     
-# %% plot data for hypothesis 1 (part II)
+# %% Visualisation hypothesis 1 (part II)
 # get fitted dataframe and data
 model_1_fit_df = pd.DataFrame(fit_data, columns=["cond_id", "block_id", "x_values", "y_values"])
 
@@ -326,9 +249,7 @@ block_ids = model_1_df["block_id"].unique().tolist()
 
 #prepare plotting
 # set theme and style
-sns.set_theme() # reset seaborns defaults
-sns.set_context("paper", rc={"font.family": "Arial", "font.size": 9})
-sns.set_style("ticks")
+analysis.define_plotting_theme()
 
 y_ticks = np.arange(3, 12, 1).tolist()
 
@@ -370,9 +291,49 @@ for ax, cond_id in zip(axes, cond_ids):
 fig.legend(handles, labels, title="Test", loc="center left", bbox_to_anchor=(0.98, 0.5), handletextpad=0, frameon=False)
 
 plt.tight_layout()
-save_fig("hyp-1_part-2")
+analysis.save_fig("hyp-1_part-2")
 
-# %% hypothesis 2 page's L test
+# %% Hypothesis 1 (part III)
+# t-test comparison between block 1 and 2 of cond 1 and 2
+means_df = analysis.get_means_df(df=cleaned_df, value_to_mean="absolute_error", mean_by="speaker_distance")
+include_condition = (
+    ((means_df["cond_id"].isin([1, 2])) &
+     (means_df["block_id"].isin([1, 2]))
+     )
+    )
+filtered_df = means_df[include_condition].copy()
+filtered_df = filtered_df[filtered_df["sub_id"] != 15]
+sns.lmplot(data=filtered_df, x="block_id", y="mean_absolute_error", col="cond_id", hue="cond_id")
+plt.show()
+
+group_1_array = filtered_df[(filtered_df["cond_id"] == 2) & (filtered_df["block_id"] == 1)]["mean_absolute_error"].to_numpy()
+group_2_array = filtered_df[(filtered_df["cond_id"] == 2) & (filtered_df["block_id"] == 2)]["mean_absolute_error"].to_numpy()
+
+t_stat, p_val = ttest_ind(a=group_1_array, b=group_2_array, equal_var=False, alternative="two-sided")
+print(f"t-statistic: {t_stat:.3f}")
+print(f"p-value: {p_val:.3f}")
+
+group_1_parameter = analysis.get_group_parameter(array=group_1_array)
+group_2_parameter = analysis.get_group_parameter(array=group_2_array)
+analysis.statistical_power(group_1=group_1_parameter, group_2=group_2_parameter, alpha=0.05, alternative="two-sided")
+
+# %% Hypothesis 1 (part IV)
+# t-test questionaire
+group_1_array = questionnaire_df[questionnaire_df["cond_id"] == 1]["q09"].to_numpy()
+group_2_array = questionnaire_df[questionnaire_df["cond_id"] == 2]["q09"].to_numpy()
+
+group_1_array = np.delete(group_1_array, obj=3)
+
+t_stat, p_val = ttest_ind(a=group_1_array, b=group_2_array, equal_var=False, alternative="two-sided")
+print(f"t-statistic: {t_stat:.3f}")
+print(f"p-value: {p_val:.3f}")
+
+group_1_parameter = analysis.get_group_parameter(array=group_1_array)
+group_2_parameter = analysis.get_group_parameter(array=group_2_array)
+analysis.statistical_power(group_1=group_1_parameter, group_2=group_2_parameter, alpha=0.05, alternative="two-sided")
+
+# %% Hypothesis 2 (part I)
+# page's L test
 # get dataframe as it is needed (for block 6 only speaker of speaker subset used)
 remove_condition = (
     (
@@ -388,7 +349,6 @@ remove_condition = (
 )
 filtered_df = cleaned_df[~remove_condition].copy()
 filtered_df = filtered_df[filtered_df["block_id"] != 1]
-# filtered_df = filtered_df[~filtered_df["sub_id"].isin([13, 15])] # no outlier removal because we want to investigate the effect of training
 
 means_df = analysis.get_means_df(df=filtered_df, value_to_mean="absolute_error", mean_by="block_id")
 
@@ -409,30 +369,90 @@ for cond_id in model_2_df["cond_id"].unique():
     
     print(f"\nResults of Page's L test for condition: {cond_id}")
     print(results)
-    
-# visualise data
-# set theme and style
-sns.set_theme() # reset seaborns defaults
-sns.set_context("paper", rc={"font.family": "Arial", "font.size": 9})
-sns.set_style("ticks")
 
-# prepare visualisation
-plt.figure(figsize=(6, 6))
+# %% Hypothesis 2 (part II)
+# t-test comparison accuracy block 2 cond 1, 2 and 3
+remove_condition = (
+    (
+        (cleaned_df["block_id"] == 6) &
+        (cleaned_df["cond_id"] == 1) &
+        (cleaned_df["speaker_distance"].isin([2, 8, 9, 10, 11, 12]))
+    ) |
+    (
+        (cleaned_df["block_id"] == 6) &
+        (cleaned_df["cond_id"] == 2) &
+        (cleaned_df["speaker_distance"].isin([2, 3, 4, 5, 6, 12]))
+    )
+)
+filtered_df = cleaned_df[~remove_condition].copy()
+filtered_df = filtered_df[filtered_df["block_id"].isin([2, 6])]
+
+means_df = analysis.get_means_df(df=filtered_df, value_to_mean="absolute_error", mean_by="block_id")
+
+cond_to_compare = [1, 3]
+group_1_array = means_df[(means_df["block_id"] == 2) & (means_df["cond_id"] == cond_to_compare[0])]["mean_absolute_error"].to_numpy()
+group_2_array = means_df[(means_df["block_id"] == 2) & (means_df["cond_id"] == cond_to_compare[1])]["mean_absolute_error"].to_numpy()
+
+t_stat, p_val = ttest_ind(a=group_1_array, b=group_2_array, equal_var=False, alternative="two-sided")
+print(f"t-statistic: {t_stat:.3f}")
+print(f"p-value: {p_val:.3f}")
+
+
+group_1_parameter = analysis.get_group_parameter(array=group_1_array)
+group_2_parameter = analysis.get_group_parameter(array=group_2_array)
+analysis.statistical_power(group_1=group_1_parameter, group_2=group_2_parameter, alpha=0.05, alternative="two-sided")
+
+# %% Visualisation hypothesis II (part II)
+
+# get dataframe and map cond_id / block_id
+annotations_df = means_df.copy()
 cond_id_mapping = {1: "Group A (3-7 m)", 2: "Group B (7-11 m)", 3: "Reference (2-12 m)"}
-block_id_mapping = {2: "naive (limited view)", 4: "single-trained", 6: "double-trained"}
+block_id_mapping = {2: "naive (limited view)", 6: "double-trained (limited view)"}
+annotations_df = annotations_df.replace({"cond_id": cond_id_mapping, "block_id": block_id_mapping})
 
-sns.catplot(data=model_2_df.replace({"cond_id": cond_id_mapping, "block_id": block_id_mapping}),
-            x="block_id", y="mean_absolute_error", hue="cond_id", 
-            kind="box", palette="colorblind", legend_out=False)
+x = "block_id"
+y = "mean_absolute_error"
+cond_ids = [1, 2, 3]
 
+pairs = [
+    [("naive (limited view)", "Group A (3-7 m)"), ("naive (limited view)", "Group B (7-11 m)")],
+    [("naive (limited view)", "Group A (3-7 m)"), ("naive (limited view)", "Reference (2-12 m)")],
+    [("naive (limited view)", "Group B (7-11 m)"), ("naive (limited view)", "Reference (2-12 m)")],
+    
+    [("double-trained (limited view)", "Group A (3-7 m)"), ("double-trained (limited view)", "Group B (7-11 m)")],
+    [("double-trained (limited view)", "Group A (3-7 m)"), ("double-trained (limited view)", "Reference (2-12 m)")],
+    [("double-trained (limited view)", "Group B (7-11 m)"), ("double-trained (limited view)", "Reference (2-12 m)")]
+    ]
+
+hue_plot_params = {
+    'data': annotations_df,
+    'x': 'block_id',
+    'y': 'mean_absolute_error',
+    "order": ["naive (limited view)", "double-trained (limited view)"],
+    "hue": "cond_id",
+    "hue_order": ["Group A (3-7 m)", "Group B (7-11 m)", "Reference (2-12 m)"],
+    "palette": "colorblind"
+}
+
+# set theme and style
+analysis.define_plotting_theme()
+
+# Plot with seaborn
+ax = sns.boxplot(**hue_plot_params)
+
+# Add annotations
+annotator = Annotator(ax, pairs, **hue_plot_params)
+annotator.configure(test="Mann-Whitney").apply_and_annotate()
+
+# adjust layout
 plt.xlabel(None)
 plt.ylabel("mean absolute error")
 plt.legend(title="Group", loc="center left", bbox_to_anchor=(1, 0.5), alignment="center", handletextpad=0.5, frameon=False)
 
-plt.tight_layout()
-save_fig("hyp-3")
+#plt.tight_layout()
+analysis.save_fig("hyp-2_part-2")
     
-# %% hypothesis 3 (part I)
+# %% Hypothesis 3 (part I)
 # set variables
 x = "speaker_distance"
 y= "response_distance"
@@ -496,7 +516,6 @@ model_3_df[f"log_{y}"] = np.log(model_3_df[f"{y}"])
 x = f"log_{x}"
 y= f"log_{y}"
 
-# R: model_3 <- lmer(log_mean_response_distance ~ log_speaker_distance * condition + (1 | sub_id), data = model_3_df)
 fit_data = []
 for subset in model_3_df["subset"].unique():
     
@@ -558,14 +577,12 @@ for subset in model_3_df["subset"].unique():
         fit_data.extend([(subset, condition, x, y) for x, y in zip(x_values, y_fit)])
 
 
-# %% plot data for hypothesis 3 (part I)
+# %% Visualisation hypothesis 3 (part I)
 # get fitted dataframe and data
 model_3_fit_df = pd.DataFrame(fit_data, columns=["subset", "condition", "x_values", "y_values"])
 
 # set theme and style
-sns.set_theme() # reset seaborns defaults
-sns.set_context("paper", rc={"font.family": "Arial", "font.size": 9})
-sns.set_style("ticks")
+analysis.define_plotting_theme()
 
 # prepare looping
 subsets = model_3_df["subset"].unique().tolist()
@@ -610,7 +627,7 @@ for ax, subset in zip(axes, subsets):
 fig.legend(handles, labels, title="Stimulus exposure", loc="center left", bbox_to_anchor=(0.98, 0.5), handletextpad=0, frameon=False, alignment="left")
     
 plt.tight_layout()
-save_fig("hyp-2_part-1")
+analysis.save_fig("hyp-3_part-1")
 
 # %% hypothesis 3 (part II)
 # absolute error per speaker distance in block 6
@@ -662,127 +679,3 @@ for trend in ["increasing", "decreasing"]:
         
         print(f"Results of Page's L test for condition: {condition}")
         print(results)
-
-# %% additional investigation
-from scipy.stats import ttest_ind
-
-# t-test comparison between block 1 and 2 of cond 1 and 2
-means_df = analysis.get_means_df(df=cleaned_df, value_to_mean="absolute_error", mean_by="speaker_distance")
-include_condition = (
-    ((means_df["cond_id"].isin([1, 2])) &
-     (means_df["block_id"].isin([1, 2]))
-     )
-    )
-filtered_df = means_df[include_condition].copy()
-filtered_df = filtered_df[filtered_df["sub_id"] != 15]
-sns.lmplot(data=filtered_df, x="block_id", y="mean_absolute_error", col="cond_id", hue="cond_id")
-
-group_1_array = filtered_df[(filtered_df["cond_id"] == 2) & (filtered_df["block_id"] == 1)]["mean_absolute_error"].to_numpy()
-group_2_array = filtered_df[(filtered_df["cond_id"] == 2) & (filtered_df["block_id"] == 2)]["mean_absolute_error"].to_numpy()
-
-t_stat, p_val = ttest_ind(a=group_1_array, b=group_2_array, equal_var=False, alternative="two-sided")
-print(f"t-statistic: {t_stat:.3f}")
-print(f"p-value: {p_val:.3f}")
-
-group_1_parameter = analysis.get_group_parameter(array=group_1_array)
-group_2_parameter = analysis.get_group_parameter(array=group_2_array)
-analysis.statistical_power(group_1=group_1_parameter, group_2=group_2_parameter, alpha=0.05, alternative="two-sided")
-
-
-# %% t-test Hypothesis 1 Part III
-group_1_array = questionnaire_df[questionnaire_df["cond_id"] == 1]["q09"].to_numpy()
-group_2_array = questionnaire_df[questionnaire_df["cond_id"] == 2]["q09"].to_numpy()
-
-group_1_array = np.delete(group_1_array, obj=3)
-
-t_stat, p_val = ttest_ind(a=group_1_array, b=group_2_array, equal_var=False, alternative="two-sided")
-print(f"t-statistic: {t_stat:.3f}")
-print(f"p-value: {p_val:.3f}")
-
-group_1_parameter = analysis.get_group_parameter(array=group_1_array)
-group_2_parameter = analysis.get_group_parameter(array=group_2_array)
-analysis.statistical_power(group_1=group_1_parameter, group_2=group_2_parameter, alpha=0.05, alternative="two-sided")
-
-# %% t-test comparison accuracy block 2 cond 1, 2 and 3
-remove_condition = (
-    (
-        (cleaned_df["block_id"] == 6) &
-        (cleaned_df["cond_id"] == 1) &
-        (cleaned_df["speaker_distance"].isin([2, 8, 9, 10, 11, 12]))
-    ) |
-    (
-        (cleaned_df["block_id"] == 6) &
-        (cleaned_df["cond_id"] == 2) &
-        (cleaned_df["speaker_distance"].isin([2, 3, 4, 5, 6, 12]))
-    )
-)
-filtered_df = cleaned_df[~remove_condition].copy()
-filtered_df = filtered_df[filtered_df["block_id"].isin([2, 6])]
-
-means_df = analysis.get_means_df(df=filtered_df, value_to_mean="absolute_error", mean_by="block_id")
-
-cond_to_compare = [1, 3]
-group_1_array = means_df[(means_df["block_id"] == 2) & (means_df["cond_id"] == cond_to_compare[0])]["mean_absolute_error"].to_numpy()
-group_2_array = means_df[(means_df["block_id"] == 2) & (means_df["cond_id"] == cond_to_compare[1])]["mean_absolute_error"].to_numpy()
-
-t_stat, p_val = ttest_ind(a=group_1_array, b=group_2_array, equal_var=False, alternative="two-sided")
-print(f"t-statistic: {t_stat:.3f}")
-print(f"p-value: {p_val:.3f}")
-
-
-group_1_parameter = analysis.get_group_parameter(array=group_1_array)
-group_2_parameter = analysis.get_group_parameter(array=group_2_array)
-analysis.statistical_power(group_1=group_1_parameter, group_2=group_2_parameter, alpha=0.05, alternative="two-sided")
-
-# %% plotting for t-test comparison
-from statannotations.Annotator import Annotator
-
-# get dataframe and map cond_id / block_id
-annotations_df = means_df.copy()
-cond_id_mapping = {1: "Group A (3-7 m)", 2: "Group B (7-11 m)", 3: "Reference (2-12 m)"}
-block_id_mapping = {2: "naive (limited view)", 6: "double-trained (limited view)"}
-annotations_df = annotations_df.replace({"cond_id": cond_id_mapping, "block_id": block_id_mapping})
-
-x = "block_id"
-y = "mean_absolute_error"
-cond_ids = [1, 2, 3]
-
-pairs = [
-    [("naive (limited view)", "Group A (3-7 m)"), ("naive (limited view)", "Group B (7-11 m)")],
-    [("naive (limited view)", "Group A (3-7 m)"), ("naive (limited view)", "Reference (2-12 m)")],
-    [("naive (limited view)", "Group B (7-11 m)"), ("naive (limited view)", "Reference (2-12 m)")],
-    
-    [("double-trained (limited view)", "Group A (3-7 m)"), ("double-trained (limited view)", "Group B (7-11 m)")],
-    [("double-trained (limited view)", "Group A (3-7 m)"), ("double-trained (limited view)", "Reference (2-12 m)")],
-    [("double-trained (limited view)", "Group B (7-11 m)"), ("double-trained (limited view)", "Reference (2-12 m)")]
-    ]
-
-hue_plot_params = {
-    'data': annotations_df,
-    'x': 'block_id',
-    'y': 'mean_absolute_error',
-    "order": ["naive (limited view)", "double-trained (limited view)"],
-    "hue": "cond_id",
-    "hue_order": ["Group A (3-7 m)", "Group B (7-11 m)", "Reference (2-12 m)"],
-    "palette": "colorblind"
-}
-
-# set theme and style
-sns.set_theme() # reset seaborns defaults
-sns.set_context("paper", rc={"font.family": "Arial", "font.size": 9})
-sns.set_style("ticks")
-
-# Plot with seaborn
-ax = sns.boxplot(**hue_plot_params)
-
-# Add annotations
-annotator = Annotator(ax, pairs, **hue_plot_params)
-annotator.configure(test="Mann-Whitney").apply_and_annotate()
-
-# adjust layout
-plt.xlabel(None)
-plt.ylabel("mean absolute error")
-plt.legend(title="Group", loc="center left", bbox_to_anchor=(1, 0.5), alignment="center", handletextpad=0.5, frameon=False)
-
-#plt.tight_layout()
-save_fig("hyp-3")
